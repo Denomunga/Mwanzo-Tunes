@@ -12,10 +12,10 @@ dotenv.config();
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!,
-  baseURL: process.env.BASE_URL!,
-  clientID: process.env.CLIENT_ID!,
-  issuerBaseURL: process.env.ISSUER_BASE_URL!,
+  secret: process.env.AUTH0_SECRET || "fallback-secret-for-development",
+  baseURL: process.env.BASE_URL || "http://localhost:5173",
+  clientID: process.env.CLIENT_ID || "default-client-id",
+  issuerBaseURL: process.env.ISSUER_BASE_URL || "https://default.auth0.com",
 };
 
 export const authMiddleware = auth(authConfig);
