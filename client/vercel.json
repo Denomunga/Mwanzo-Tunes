@@ -7,7 +7,13 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "https://mwanzo-tunes-server.onrender.com/api/$1" },
-    { "src": "/(.*)", "dest": "/dist/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "https://mwanzo-tunes-server.onrender.com/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/index.html"
+    }
   ]
 }
