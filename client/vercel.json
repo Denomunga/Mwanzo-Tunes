@@ -7,25 +7,7 @@
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "https://mwanzo-tunes-server.onrender.com/api/$1"
-    },
-    {
-      "src": "/callback",
-      "dest": "https://mwanzo-tunes-server.onrender.com/callback"
-    },
-    {
-      "src": "/login",
-      "dest": "https://mwanzo-tunes-server.onrender.com/login"
-    },
-    {
-      "src": "/logout",
-      "dest": "https://mwanzo-tunes-server.onrender.com/logout"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "/api/(.*)", "dest": "https://mwanzo-tunes-server.onrender.com/api/$1" },
+    { "src": "/(.*)", "dest": "/dist/index.html" }
   ]
 }
