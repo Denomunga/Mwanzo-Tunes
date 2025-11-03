@@ -193,15 +193,16 @@ export default function Landing() {
                   Contact
                 </button>
 
-                <Button 
-                  onClick={() => window.location.href = "/login"}
-                  className="hover-lift glass animate-bounce-gentle"
-                  data-testid="button-login"
-                >
-                  <Sparkles className="mr-2 h-4 w-4 animate-spin-slow" />
-                  Login
-                  <Star className="ml-2 h-4 w-4 animate-pulse" />
-                </Button>
+                {/* ✅ Real Auth0 Login Button */}
+            <a
+            href={`${import.meta.env.VITE_API_URL}/login`}
+            className="hover-lift glass px-6 py-2 rounded-xl flex items-center font-semibold text-white bg-primary hover:bg-primary/90 transition-all duration-300 animate-bounce-gentle"
+            data-testid="button-login"
+            >
+            <Sparkles className="mr-2 h-4 w-4 animate-spin-slow" />
+            Login
+            <Star className="ml-2 h-4 w-4 animate-pulse" />
+            </a>
               </div>
             </div>
           </div>
