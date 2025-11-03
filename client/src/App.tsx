@@ -1,4 +1,4 @@
-//client/src/App.tsx
+// client/src/App.tsx
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -17,13 +17,23 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
+      {/* Public route */}
+      <Route path="/" component={isAuthenticated ? Home : Landing} />
+
+      {/* Protected routes */}
+      {isAuthenticated && (
         <>
-          <Route path="/" component={Home} />
           <Route path="/events" component={Events} />
           <Route path="/about" component={About} />
           <Route path="/songs" component={Songs} />
@@ -31,6 +41,8 @@ function Router() {
           <Route path="/admin" component={Admin} />
         </>
       )}
+
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );
