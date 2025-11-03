@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
-import pkg from "express-openid-connect"; // ✅ Fixed import
+import pkg from "express-openid-connect"; // ✅ CommonJS import fix
 const { auth, requiresAuth } = pkg;
 import { createServer } from "http";
 import path from "path";
@@ -34,8 +34,8 @@ app.use(
 
 /* --------------------- CORS CONFIG --------------------- */
 const allowedOrigins = [
-  process.env.FRONTEND_URL, // Vercel frontend
-  process.env.BASE_URL, // Render backend
+  process.env.FRONTEND_URL,
+  process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
 ].filter(Boolean) as string[];
@@ -77,8 +77,8 @@ const config = {
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET,
   baseURL: process.env.BASE_URL, // e.g. https://mwanzo-tunes-server.onrender.com
-  clientID: process.env.AUTH0_CLIENT_ID,
-  issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`, // e.g. dev-b7iml26mefi4x8a4.us.auth0.com
+  clientID: process.env.CLIENT_ID, // ✅ fixed name
+  issuerBaseURL: process.env.ISSUER_BASE_URL, // ✅ fixed name
   routes: {
     login: "/login",
     callback: "/callback",
@@ -90,11 +90,18 @@ const config = {
   },
 };
 
-if (process.env.AUTH0_SECRET) {
+// Debug check to verify env vars on Render
+console.log("✅ Auth0 Config Check:", {
+  clientID: process.env.CLIENT_ID,
+  issuerBaseURL: process.env.ISSUER_BASE_URL,
+  baseURL: process.env.BASE_URL,
+});
+
+if (config.secret && config.clientID && config.issuerBaseURL) {
   app.use(auth(config as any));
   log("✅ Auth0 configured successfully");
 } else {
-  console.warn("⚠️ Auth0 secret not found - authentication disabled");
+  console.error("❌ Missing Auth0 env vars. Check Render environment settings.");
 }
 
 /* --------------------- LOGOUT --------------------- */
@@ -130,7 +137,6 @@ app.get("/api/auth/user", async (req: any, res: any) => {
     const lastName = user.family_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // Check or insert user in database
     const existing = await db.execute(
       sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`
     );
