@@ -2,7 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
-import { auth, requiresAuth } from "express-openid-connect";
+import pkg from "express-openid-connect"; // ✅ Fixed import
+const { auth, requiresAuth } = pkg;
 import { createServer } from "http";
 import path from "path";
 import { db } from "./db.js";
