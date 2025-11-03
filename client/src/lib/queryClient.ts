@@ -1,5 +1,6 @@
-// client/src/lib/queryClient.ts
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+
+const API_BASE = import.meta.env.VITE_API_URL;
 
 /**
  * Throws an error if the response status is not OK
@@ -19,7 +20,10 @@ export async function apiRequest(
   url: string,
   data?: unknown
 ): Promise<Response> {
-  const res = await fetch(url, {
+  // FIX: Prepend API_BASE to relative URLs
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+  
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -41,7 +45,11 @@ export const getQueryFn = <T,>(
   const { on401: unauthorizedBehavior } = options;
   return async ({ queryKey }) => {
     const url = queryKey.join("/") as string;
-    const res = await fetch(url, { credentials: "include" });
+    
+    // FIX: Prepend API_BASE to relative URLs
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    
+    const res = await fetch(fullUrl, { credentials: "include" });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null as unknown as T;
