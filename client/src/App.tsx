@@ -1,7 +1,6 @@
-// client/src/App.tsx
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,16 +14,47 @@ import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
 
-  // Show loading spinner while checking auth
+  // Loading spinner while checking auth
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen text-lg">
+        Loading...
       </div>
     );
   }
+
+  // Redirect helper for protected routes
+  const requireAuth = (Component: React.ComponentType) => () => {
+    if (!isAuthenticated) {
+      window.location.href = `${import.meta.env.VITE_ISSUER_BASE_URL}/authorize?client_id=${
+        import.meta.env.VITE_CLIENT_ID
+      }&response_type=code&scope=openid profile email&redirect_uri=${encodeURIComponent(
+        window.location.origin
+      )}`;
+      return null;
+    }
+    return <Component />;
+  };
+
+  // Admin route guard
+  const requireAdmin = (Component: React.ComponentType) => () => {
+    if (!isAuthenticated) {
+      window.location.href = `${import.meta.env.VITE_ISSUER_BASE_URL}/authorize?client_id=${
+        import.meta.env.VITE_CLIENT_ID
+      }&response_type=code&scope=openid profile email&redirect_uri=${encodeURIComponent(
+        window.location.origin
+      )}`;
+      return null;
+    }
+    if (user?.role !== "admin") {
+      setLocation("/");
+      return null;
+    }
+    return <Component />;
+  };
 
   return (
     <Switch>
@@ -32,15 +62,11 @@ function Router() {
       <Route path="/" component={isAuthenticated ? Home : Landing} />
 
       {/* Protected routes */}
-      {isAuthenticated && (
-        <>
-          <Route path="/events" component={Events} />
-          <Route path="/about" component={About} />
-          <Route path="/songs" component={Songs} />
-          <Route path="/contact" component={Contact} />
-          <Route path="/admin" component={Admin} />
-        </>
-      )}
+      <Route path="/events" component={requireAuth(Events)} />
+      <Route path="/about" component={requireAuth(About)} />
+      <Route path="/songs" component={requireAuth(Songs)} />
+      <Route path="/contact" component={requireAuth(Contact)} />
+      <Route path="/admin" component={requireAdmin(Admin)} />
 
       {/* Fallback */}
       <Route component={NotFound} />
