@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "../",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "baseUrl": ".",
+    "paths": {
+      
+    }
+  },
+  "include": [
+    "./**/*",
+    
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../client",
+    "../node_modules"
+  ]
+}

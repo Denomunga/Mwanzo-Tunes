@@ -1,349 +1,394 @@
-import express, { type Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
-import { 
-  insertEventSchema, 
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+import { storage } from "./storage.js";
+import {
+  insertEventSchema,
   insertAboutContentSchema,
   insertContactSchema,
   insertSongSchema,
-  insertSocialMediaSchema 
-} from "@shared/schema";
-import multer from "multer";
-import path from "path";
+  insertSocialMediaSchema,
+} from "./src/schema.js";
+import { isAuthenticated as isAuthenticatedMiddleware, requireAdmin } from "./auth.js";
 
-const upload = multer({ 
-  dest: "uploads/",
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /\.(mp3|mp4|wav|ogg|m4a|webm)$/i;
-    if (allowedTypes.test(file.originalname)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only audio and video files are allowed.'));
-    }
-  }
+// Configure upload directory for storing images and files
+const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// ✅ FIXED: Custom disk storage for event images to preserve file extension
+const eventDiskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
-
-  // Initialize default admin
-  await storage.initializeDefaultAdmin();
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+// ✅ FIXED: Updated Multer for event images with custom storage
+const eventImageUpload = multer({
+  storage: eventDiskStorage, // Use custom storage instead of dest
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for images
+  fileFilter: (_req, file, cb) => {
+    // Security: Only allow image files for events to prevent malicious uploads
+    const allowed = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
+    if (allowed.test(file.originalname)) {
+      cb(null, true); // Accept the file
+    } else {
+      cb(new Error("Invalid file type. Only images allowed for events."));
     }
-  });
+  },
+});
 
-  // Events routes
-  app.get('/api/events', async (req, res) => {
+// ✅ FIXED: Custom disk storage for songs to preserve file extension (for consistency)
+const songDiskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+// Multer configuration for song uploads (audio/video files)
+const upload = multer({
+  storage: songDiskStorage, // Use custom storage instead of dest
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for audio/video
+  fileFilter: (_req, file, cb) => {
+    // Security: Only allow audio/video files
+    const allowed = /\.(mp3|mp4|wav|ogg|m4a|webm)$/i;
+    if (allowed.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only audio/video allowed."));
+    }
+  },
+});
+
+export async function registerRoutes(app: any): Promise<void> {
+  // ===== EVENTS ROUTES =====
+  
+  // GET /api/events - Get all events
+  app.get("/api/events", async (_req: any, res: any) => {
     try {
       const events = await storage.getEvents();
       res.json(events);
-    } catch (error) {
-      console.error("Error fetching events:", error);
+    } catch (err) {
+      console.error("Error fetching events", err);
       res.status(500).json({ message: "Failed to fetch events" });
     }
   });
 
-  app.post('/api/events', isAuthenticated, async (req: any, res) => {
-    try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
+  // POST /api/events - Create a new event (Admin only)
+  app.post(
+    "/api/events",
+    isAuthenticatedMiddleware as any, // Check if user is authenticated
+    requireAdmin, // Check if user has admin role
+    eventImageUpload.single("image"), // Handle single image upload for event poster
+    async (req: any, res: any) => {
+      try {
+        const user = req.user;
 
-      const eventData = insertEventSchema.parse({ ...req.body, createdBy: user.id });
-      const event = await storage.createEvent(eventData);
-      res.json(event);
-    } catch (error) {
-      console.error("Error creating event:", error);
-      res.status(500).json({ message: "Failed to create event" });
+        // Extract form data from request body
+        const { title, description, date, location } = req.body;
+        
+        // Handle location if it comes as an array
+        const locationString = Array.isArray(location) ? location[0] : location;
+
+        // Build image URL if file was uploaded
+        let imageUrl = null;
+        if (req.file) {
+          // Construct the URL where the image can be accessed
+          imageUrl = `/uploads/${req.file.filename}`;
+        }
+
+        // Prepare the event payload with all required fields
+        const payload = {
+          title,
+          description,
+          date,
+          location: locationString,
+          imageUrl,
+          coordinates: "", // Currently not used, can be added later for maps
+          createdBy: user.id // Track which user created the event
+        };
+
+        // Validate the payload against the schema
+        const parsed = insertEventSchema.parse(payload);
+        // Create the event in the database
+        const ev = await storage.createEvent(parsed);
+        res.json(ev);
+      } catch (err) {
+        console.error("Error creating event", err);
+        res.status(500).json({ message: "Failed to create event" });
+      }
     }
-  });
+  );
 
-  app.delete('/api/events/:id', isAuthenticated, async (req: any, res) => {
+  // DELETE /api/events/:id - Delete an event (Admin only)
+  app.delete("/api/events/:id", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || (user.role !== 'admin' && user.role !== 'staff')) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
-
       await storage.deleteEvent(req.params.id);
       res.json({ message: "Event deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting event:", error);
+    } catch (err) {
+      console.error("Error deleting event", err);
       res.status(500).json({ message: "Failed to delete event" });
     }
   });
 
-  app.post('/api/events/:id/like', isAuthenticated, async (req: any, res) => {
+  // POST /api/events/:id/like - Like or unlike an event (Authenticated users only)
+  app.post("/api/events/:id/like", isAuthenticatedMiddleware as any, async (req: any, res: any) => {
     try {
-      const userId = req.user.claims.sub;
+      // Use the user from auth middleware
+      const userId = req.user.id;
       const eventId = req.params.id;
-      
-      const existingLike = await storage.getUserEventLike(eventId, userId);
-      if (existingLike) {
+
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const existing = await storage.getUserEventLike(eventId, userId);
+      if (existing) {
         await storage.unlikeEvent(eventId, userId);
         res.json({ liked: false });
       } else {
         await storage.likeEvent(eventId, userId);
         res.json({ liked: true });
       }
-    } catch (error) {
-      console.error("Error toggling event like:", error);
+    } catch (err) {
+      console.error("Error toggling like", err);
       res.status(500).json({ message: "Failed to toggle like" });
     }
   });
 
-  // About routes
-  app.get('/api/about', async (req, res) => {
+  // ===== ABOUT ROUTES =====
+  
+  // GET /api/about - Get about page content
+  app.get("/api/about", async (_req: any, res: any) => {
     try {
       const content = await storage.getAboutContent();
-      res.json(content);
-    } catch (error) {
-      console.error("Error fetching about content:", error);
+      res.json(content ?? null);
+    } catch (err) {
+      console.error("Error fetching about", err);
       res.status(500).json({ message: "Failed to fetch about content" });
     }
   });
 
-  app.put('/api/about', isAuthenticated, async (req: any, res) => {
+  // PUT /api/about - Update about page content (Admin only)
+  app.put("/api/about", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const contentData = insertAboutContentSchema.parse({ ...req.body, updatedBy: user.id });
-      const content = await storage.upsertAboutContent(contentData);
-      res.json(content);
-    } catch (error) {
-      console.error("Error updating about content:", error);
+      const user = req.user;
+      
+      const payload = { ...req.body, updatedBy: user.id };
+      const parsed = insertAboutContentSchema.parse(payload);
+      const updated = await storage.upsertAboutContent(parsed);
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating about", err);
       res.status(500).json({ message: "Failed to update about content" });
     }
   });
 
-  // Contact routes
-  app.get('/api/contacts', async (req, res) => {
+  // ===== CONTACTS ROUTES =====  //
+  
+  // GET /api/contacts - Get all contacts
+  app.get("/api/contacts", async (_req: any, res: any) => {
     try {
       const contacts = await storage.getContacts();
       res.json(contacts);
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
+    } catch (err) {
+      console.error("Error fetching contacts", err);
       res.status(500).json({ message: "Failed to fetch contacts" });
     }
   });
 
-  app.post('/api/contacts', isAuthenticated, async (req: any, res) => {
+  // POST /api/contacts - Create a new contact (Admin only)
+  app.post("/api/contacts", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const contactData = insertContactSchema.parse({ ...req.body, createdBy: user.id });
-      const contact = await storage.createContact(contactData);
-      res.json(contact);
-    } catch (error) {
-      console.error("Error creating contact:", error);
+      const user = req.user;
+      
+      const parsed = insertContactSchema.parse({ ...req.body, createdBy: user.id });
+      const created = await storage.createContact(parsed);
+      res.json(created);
+    } catch (err) {
+      console.error("Error creating contact", err);
       res.status(500).json({ message: "Failed to create contact" });
     }
   });
 
-  app.delete('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+  // DELETE /api/contacts/:id - Delete a contact (Admin only)
+  app.delete("/api/contacts/:id", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       await storage.deleteContact(req.params.id);
       res.json({ message: "Contact deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting contact:", error);
+    } catch (err) {
+      console.error("Error deleting contact", err);
       res.status(500).json({ message: "Failed to delete contact" });
     }
   });
 
-  // Song routes
-  app.get('/api/songs', async (req, res) => {
+  // ===== SONGS ROUTES =====
+  
+  // GET /api/songs - Get all songs
+  app.get("/api/songs", async (_req: any, res: any) => {
     try {
       const songs = await storage.getSongs();
       res.json(songs);
-    } catch (error) {
-      console.error("Error fetching songs:", error);
+    } catch (err) {
+      console.error("Error fetching songs", err);
       res.status(500).json({ message: "Failed to fetch songs" });
     }
   });
 
-  app.post('/api/songs', isAuthenticated, async (req: any, res) => {
+  // POST /api/songs - Create a new song (Admin only)
+  app.post("/api/songs", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const songData = insertSongSchema.parse({ ...req.body, createdBy: user.id });
-      const song = await storage.createSong(songData);
-      res.json(song);
-    } catch (error) {
-      console.error("Error creating song:", error);
+      const user = req.user;
+      
+      const parsed = insertSongSchema.parse({ ...req.body, createdBy: user.id });
+      const created = await storage.createSong(parsed);
+      res.json(created);
+    } catch (err) {
+      console.error("Error creating song", err);
       res.status(500).json({ message: "Failed to create song" });
     }
   });
 
-  app.post('/api/songs/upload', isAuthenticated, upload.array('files'), async (req: any, res) => {
-    try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
+  // POST /api/songs/upload - Upload song files (Admin only)
+  app.post(
+    "/api/songs/upload",
+    isAuthenticatedMiddleware as any,
+    requireAdmin,
+    upload.array("files") as any,
+    async (req: any, res: any) => {
+      try {
+        const user = req.user;
+        const files = req.files as Express.Multer.File[];
+        const created: any[] = [];
+        
+        // Process each uploaded file
+        for (const f of files) {
+          const songData = {
+            title: path.parse(f.originalname).name, // Use filename as song title
+            localFileUrl: `/uploads/${f.filename}`, // Store file path
+            createdBy: user.id,
+          };
+          const s = await storage.createSong(insertSongSchema.parse(songData));
+          created.push(s);
+        }
+
+        res.json(created);
+      } catch (err) {
+        console.error("Error uploading songs", err);
+        res.status(500).json({ message: "Failed to upload songs" });
       }
-
-      const files = req.files as Express.Multer.File[];
-      const songs = [];
-
-      for (const file of files) {
-        const songData = {
-          title: path.parse(file.originalname).name,
-          localFileUrl: `/uploads/${file.filename}`,
-          createdBy: user.id,
-        };
-        const song = await storage.createSong(songData);
-        songs.push(song);
-      }
-
-      res.json(songs);
-    } catch (error) {
-      console.error("Error uploading songs:", error);
-      res.status(500).json({ message: "Failed to upload songs" });
     }
-  });
+  );
 
-  app.delete('/api/songs/:id', isAuthenticated, async (req: any, res) => {
+  // DELETE /api/songs/:id - Delete a song (Admin only)
+  app.delete("/api/songs/:id", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       await storage.deleteSong(req.params.id);
       res.json({ message: "Song deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting song:", error);
+    } catch (err) {
+      console.error("Error deleting song", err);
       res.status(500).json({ message: "Failed to delete song" });
     }
   });
 
-  // Social media routes
-  app.get('/api/social-media', async (req, res) => {
+  // ===== SOCIAL MEDIA ROUTES =====
+  
+  // GET /api/social-media - Get all social media links
+  app.get("/api/social-media", async (_req: any, res: any) => {
     try {
-      const socialMedia = await storage.getSocialMedia();
-      res.json(socialMedia);
-    } catch (error) {
-      console.error("Error fetching social media:", error);
+      const sm = await storage.getSocialMedia();
+      res.json(sm);
+    } catch (err) {
+      console.error("Error fetching social media", err);
       res.status(500).json({ message: "Failed to fetch social media" });
     }
   });
 
-  app.post('/api/social-media', isAuthenticated, async (req: any, res) => {
+  // POST /api/social-media - Create or update social media link (Admin only)
+  app.post("/api/social-media", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const socialData = insertSocialMediaSchema.parse({ ...req.body, updatedBy: user.id });
-      const social = await storage.upsertSocialMedia(socialData);
-      res.json(social);
-    } catch (error) {
-      console.error("Error creating/updating social media:", error);
-      res.status(500).json({ message: "Failed to create/update social media" });
+      const user = req.user;
+      
+      const parsed = insertSocialMediaSchema.parse({ ...req.body, updatedBy: user.id });
+      const upserted = await storage.upsertSocialMedia(parsed);
+      res.json(upserted);
+    } catch (err) {
+      console.error("Error upserting social media", err);
+      res.status(500).json({ message: "Failed to upsert social media" });
     }
   });
 
-  app.delete('/api/social-media/:id', isAuthenticated, async (req: any, res) => {
+  // DELETE /api/social-media/:id - Delete social media link (Admin only)
+  app.delete("/api/social-media/:id", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       await storage.deleteSocialMedia(req.params.id);
-      res.json({ message: "Social media link deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting social media:", error);
+      res.json({ message: "Social media deleted successfully" });
+    } catch (err) {
+      console.error("Error deleting social media", err);
       res.status(500).json({ message: "Failed to delete social media" });
     }
   });
 
-  // Admin routes
-  app.get('/api/admin/users', isAuthenticated, async (req: any, res) => {
+  // ===== ADMIN USER MANAGEMENT ROUTES =====
+  
+  // GET /api/admin/users - Get all users (Admin only)
+  app.get("/api/admin/users", requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const users = await storage.getAllUsers();
       res.json(users);
-    } catch (error) {
-      console.error("Error fetching users:", error);
+    } catch (err) {
+      console.error("Error fetching users", err);
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
-  app.put('/api/admin/users/:id/role', isAuthenticated, async (req: any, res) => {
+  // PUT /api/admin/users/:id/role - Update user role (Admin only)
+  app.put("/api/admin/users/:id/role", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const { role } = req.body;
-      if (!['user', 'staff', 'admin'].includes(role)) {
+      // Security: Validate role input to prevent invalid roles
+      if (!["user", "staff", "admin"].includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
       }
 
-      const updatedUser = await storage.updateUserRole(req.params.id, role);
-      res.json(updatedUser);
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      res.status(500).json({ message: "Failed to update user role" });
+      const updated = await storage.updateUserRole(req.params.id, role);
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating role", err);
+      res.status(500).json({ message: "Failed to update role" });
     }
   });
 
-  app.delete('/api/admin/users/:id', isAuthenticated, async (req: any, res) => {
+  // DELETE /api/admin/users/:id - Delete user (Admin only)
+  app.delete("/api/admin/users/:id", isAuthenticatedMiddleware as any, requireAdmin, async (req: any, res: any) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      // Prevent admin from deleting themselves
-      if (req.params.id === user.id) {
+      const actorId = req.oidc.user?.sub;
+      
+      // Security: Prevent users from deleting their own account
+      if (req.params.id === actorId) {
         return res.status(400).json({ message: "Cannot delete your own account" });
       }
 
       await storage.deleteUser(req.params.id);
-      res.json({ message: "User deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting user:", error);
+      res.json({ message: "User deleted" });
+    } catch (err) {
+      console.error("Error deleting user", err);
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
 
-  // Serve uploaded files
-  app.use('/uploads', express.static('uploads'));
-
-  const httpServer = createServer(app);
-  return httpServer;
+  // Serve uploaded files statically from uploads directory
+  // This makes images and files accessible via URLs like /uploads/filename.jpg
+  app.use("/uploads", express.static(UPLOAD_DIR));
 }

@@ -52,21 +52,21 @@ export default function SongPlayer({ audioUrl, title, artist, onClose }: SongPla
     if (!audio) return;
 
     const newTime = value[0];
-    audio.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    const audio = audioRef.current;
-    const newVolume = value[0];
-    
-    if (audio) {
-      audio.volume = newVolume;
+    if (typeof newTime === "number") {
+  audio.currentTime = newTime;
+  setCurrentTime(newTime);
     }
-    setVolume(newVolume);
-    setIsMuted(newVolume === 0);
-  };
+};
 
+const handleVolume = (newVolume: number) => {
+    const audio = audioRef.current;
+    if (audio && typeof newVolume === "number") {
+      audio.volume = newVolume;
+      setVolume(newVolume);
+      setIsMuted(newVolume === 0);
+    }
+  };
+//
   const toggleMute = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -145,7 +145,7 @@ export default function SongPlayer({ audioUrl, title, artist, onClose }: SongPla
                 value={[isMuted ? 0 : volume]}
                 max={1}
                 step={0.1}
-                onValueChange={handleVolumeChange}
+               // onValueChange={(e) => handleVolume(Number([e.target.value]))}//{handleVolume}
                 className="w-20"
                 data-testid="song-player-volume"
               />
