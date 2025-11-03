@@ -26,16 +26,16 @@ export const authConfig = {
   },
 
   // SECURE HTTP-ONLY COOKIE
-  session: {
-    name: "mwanzo_auth",
-    rolling: true,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Lax",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
+ session: {
+  name: "mwanzo_auth",
+  rolling: true,
+  cookieMaxAge: 24 * 60 * 60 * 1000, // ← 24 hours
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Lax",
   },
+}, // 24 hours
 
   // AFTER LOGIN: Redirect to frontend
   afterCallback: (req: any, res: any, session: any) => {
