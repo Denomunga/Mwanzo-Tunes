@@ -2,7 +2,7 @@
 import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { setupVite, log } from "./vite.js";
 import { createServer } from "http";
 import path from "path";
 import { db } from "./db.js";
@@ -40,6 +40,7 @@ const allowedOrigins = [
   process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
+  "https://mwanzotunes-1efp5uui9-denos-projects-1cfdba9d.vercel.app", // Add your other frontend here
 ].filter(Boolean);
 
 app.use(
@@ -63,7 +64,7 @@ app.options("*", cors());
 /* --------------------- RATE LIMITER --------------------- */
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
+    windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100,
     message: "Too many requests from this IP, please try again later.",
   })
@@ -74,10 +75,10 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.disable("x-powered-by");
 
-/* --------------------- AUTH0: USE FROM auth.ts --------------------- */
-app.use(authMiddleware); // ← Uses secure config from auth.ts
+/* --------------------- AUTH0 --------------------- */
+app.use(authMiddleware);
 
-/* --------------------- MANUAL LOGIN ROUTE --------------------- */
+/* --------------------- LOGIN ROUTE --------------------- */
 app.get("/api/login", (req, res) => {
   const auth0Url = new URL(`https://${process.env.AUTH0_DOMAIN}/authorize`);
   auth0Url.searchParams.append("response_type", "code");
@@ -88,10 +89,10 @@ app.get("/api/login", (req, res) => {
   res.redirect(auth0Url.toString());
 });
 
-/* --------------------- USER AUTH ROUTE --------------------- */
+/* --------------------- USER ROUTE --------------------- */
 app.get("/api/auth/user", isAuthenticated, userRoute);
 
-/* --------------------- LOGOUT ROUTE (optional, auth0Logout handles it) --------------------- */
+/* --------------------- LOGOUT --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
   res.oidc.logout({
     returnTo: process.env.FRONTEND_URL || "https://mwanzotunes.vercel.app",
@@ -103,31 +104,35 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), { dotfil
 
 /* --------------------- HEALTH CHECK --------------------- */
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ status: "OK", timestamp: new Date().toISOString(), environment: process.env.NODE_ENV || "development" });
+  res.status(200).json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
-/* --------------------- PROTECTED ROUTE EXAMPLE --------------------- */
+/* --------------------- PROTECTED EXAMPLE --------------------- */
 app.get("/profile", isAuthenticated, (req: any, res: any) => {
-  res.json((req as any).user);
+  res.json(req.user);
 });
 
-/* --------------------- MAIN SERVER FUNCTION --------------------- */
+/* --------------------- MAIN SERVER --------------------- */
 async function startServer() {
   const server = createServer(app);
 
   try {
     await db.execute(sql`SELECT 1`);
-    log("Database connection verified");
+    log("✅ Database connection verified");
   } catch (err) {
-    console.error("Database connection failed:", err);
+    console.error("❌ Database connection failed:", err);
     process.exit(1);
   }
 
   try {
     await registerRoutes(app as any);
-    log("Routes registered successfully");
+    log("✅ Routes registered successfully");
   } catch (err) {
-    console.error("Failed to register routes:", err);
+    console.error("❌ Failed to register routes:", err);
   }
 
   app.use("/api/songs", songsRouter);
@@ -149,12 +154,12 @@ async function startServer() {
   }
 
   server.listen(port, host, () => {
-    log(`Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
-    log(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
+    log(`🚀 Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
+    log(`🌐 Allowed CORS origins: ${allowedOrigins.join(", ")}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error("Failed to start server:", err);
+  console.error("❌ Failed to start server:", err);
   process.exit(1);
 });
