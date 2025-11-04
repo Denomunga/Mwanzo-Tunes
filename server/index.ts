@@ -69,6 +69,17 @@ app.use(
 
 app.options("*", cors());
 
+// index.ts
+app.get("/login", (req, res) => {
+  if (!req.oidc) {
+    return res.status(500).send("OIDC not configured");
+  }
+  res.oidc.login({
+    returnTo: process.env.FRONTEND_URL || "http://localhost:5173",
+  });
+});
+
+
 /* --------------------- RATE LIMIT --------------------- */
 app.use(
   rateLimit({
