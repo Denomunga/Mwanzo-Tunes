@@ -70,7 +70,7 @@ export default function Landing() {
       <div className="fixed inset-0 -z-10 overflow-hidden">
         {/* Animated Gradient Background */}
         <div className="absolute inset-0 hero-gradient-animated opacity-20"></div>
-        
+
         {/* Floating Music Notes */}
         <div className="absolute top-1/4 left-5 animate-float-slow delay-100">
           <div className="text-primary/25 text-5xl">♪</div>
@@ -84,7 +84,7 @@ export default function Landing() {
         <div className="absolute top-1/2 right-1/3 animate-float-slow delay-700">
           <div className="text-primary/25 text-3xl">♬</div>
         </div>
-        
+
         {/* Pulsing Circles */}
         <div className="absolute top-20 right-1/4">
           <div className="w-12 h-12 border-2 border-primary/25 rounded-full animate-ping-slow"></div>
@@ -92,7 +92,7 @@ export default function Landing() {
         <div className="absolute bottom-40 left-1/3">
           <div className="w-8 h-8 border-2 border-primary/20 rounded-full animate-ping-medium delay-300"></div>
         </div>
-        
+
         {/* Particle System */}
         <div className="absolute top-0 left-0 w-full h-full">
           {[...Array(15)].map((_, i) => (
@@ -115,8 +115,8 @@ export default function Landing() {
       {/* Enhanced Navigation */}
       <nav className={cn(
         "fixed top-0 w-full z-50 transition-all duration-300",
-        isScrolled 
-          ? "glass backdrop-blur-lg shadow-lg border-b border-primary/20" 
+        isScrolled
+          ? "glass backdrop-blur-lg shadow-lg border-b border-primary/20"
           : "bg-transparent"
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -129,63 +129,63 @@ export default function Landing() {
                 <h1 className="text-xl font-bold text-gradient">Kiarutara MWANZOBOYS</h1>
               </div>
             </div>
-            
+
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-8">
-                <button 
+                <button
                   onClick={() => scrollToSection("home")}
                   className={cn(
                     "nav-link px-3 py-2 text-lg font-medium transition-all hover-lift",
-                    activeSection === "home" 
-                      ? "text-primary animate-pulse-gentle" 
+                    activeSection === "home"
+                      ? "text-primary animate-pulse-gentle"
                       : "text-foreground hover:text-primary"
                   )}
                   data-testid="nav-home"
                 >
                   Home
                 </button>
-                <button 
+                <button
                   onClick={() => scrollToSection("events")}
                   className={cn(
                     "nav-link px-3 py-2 text-lg font-medium transition-all hover-lift",
-                    activeSection === "events" 
-                      ? "text-primary animate-pulse-gentle" 
+                    activeSection === "events"
+                      ? "text-primary animate-pulse-gentle"
                       : "text-foreground hover:text-primary"
                   )}
                   data-testid="nav-events"
                 >
                   Events
                 </button>
-                <button 
+                <button
                   onClick={() => scrollToSection("about")}
                   className={cn(
                     "nav-link px-3 py-2 text-lg font-medium transition-all hover-lift",
-                    activeSection === "about" 
-                      ? "text-primary animate-pulse-gentle" 
+                    activeSection === "about"
+                      ? "text-primary animate-pulse-gentle"
                       : "text-foreground hover:text-primary"
                   )}
                   data-testid="nav-about"
                 >
                   About
                 </button>
-                <button 
+                <button
                   onClick={() => scrollToSection("songs")}
                   className={cn(
                     "nav-link px-3 py-2 text-lg font-medium transition-all hover-lift",
-                    activeSection === "songs" 
-                      ? "text-primary animate-pulse-gentle" 
+                    activeSection === "songs"
+                      ? "text-primary animate-pulse-gentle"
                       : "text-foreground hover:text-primary"
                   )}
                   data-testid="nav-songs"
                 >
                   Songs
                 </button>
-                <button 
+                <button
                   onClick={() => scrollToSection("contact")}
                   className={cn(
                     "nav-link px-3 py-2 text-lg font-medium transition-all hover-lift",
-                    activeSection === "contact" 
-                      ? "text-primary animate-pulse-gentle" 
+                    activeSection === "contact"
+                      ? "text-primary animate-pulse-gentle"
                       : "text-foreground hover:text-primary"
                   )}
                   data-testid="nav-contact"
@@ -194,15 +194,15 @@ export default function Landing() {
                 </button>
 
                 {/* ✅ Real Auth0 Login Button */}
-            <a
-            href={`${import.meta.env.VITE_API_URL}/login`}
-            className="hover-lift glass px-6 py-2 rounded-xl flex items-center font-semibold text-white bg-primary hover:bg-primary/90 transition-all duration-300 animate-bounce-gentle"
-            data-testid="button-login"
-            >
-            <Sparkles className="mr-2 h-4 w-4 animate-spin-slow" />
-            Login
-            <Star className="ml-2 h-4 w-4 animate-pulse" />
-            </a>
+                <a
+                  href="/login"
+                  className="hover-lift glass px-6 py-2 rounded-xl flex items-center font-semibold text-white bg-primary hover:bg-primary/90 transition-all duration-300 animate-bounce-gentle"
+                >
+                  <Sparkles className="mr-2 h-4 w-4 animate-spin-slow" />
+                  Login
+                  <Star className="ml-2 h-4 w-4 animate-pulse" />
+                </a>
+
               </div>
             </div>
           </div>
@@ -234,7 +234,7 @@ export default function Landing() {
                 Experience the rhythm, feel the vibe. Join us on a musical journey that transcends boundaries and touches souls.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Button 
+                <Button
                   onClick={() => scrollToSection("songs")}
                   className="hover-lift animate-bounce-gentle glass"
                   data-testid="button-listen-now"
@@ -244,8 +244,8 @@ export default function Landing() {
                   Listen Now
                   <Star className="ml-2 h-4 w-4 animate-pulse" />
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => scrollToSection("events")}
                   className="hover-lift glass"
                   data-testid="button-view-events"
@@ -256,7 +256,7 @@ export default function Landing() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="relative animate-fade-in-right">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl glass backdrop-blur-lg hover-lift group">
                 <div className="w-full h-96 bg-gradient-to-br from-primary/20 to-secondary/30 flex items-center justify-center animate-pulse-gentle group-hover:animate-glow">
@@ -269,8 +269,8 @@ export default function Landing() {
                       <p className="text-sm text-gray-300">Now Playing</p>
                       <p className="font-semibold text-white">Latest Hit Single</p>
                     </div>
-                    <Button 
-                      size="icon" 
+                    <Button
+                      size="icon"
                       className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90 hover:scale-110 transition-transform animate-pulse-gentle"
                       data-testid="button-play-hero"
                     >
@@ -304,12 +304,12 @@ export default function Landing() {
             </p>
             <div className="w-24 h-1 bg-primary mx-auto mt-6 animate-pulse-gentle"></div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events?.length ? (
               events.map((event: any, index: number) => (
-                <Card 
-                  key={event.id} 
+                <Card
+                  key={event.id}
                   className="glass backdrop-blur-lg hover-lift animate-fade-in-up group"
                   style={{ animationDelay: `${index * 100}ms` }}
                   data-testid={`card-event-${event.id}`}
@@ -386,11 +386,11 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-            
+
             <div className="animate-fade-in-right">
               <div className="glass rounded-2xl p-8 backdrop-blur-lg">
                 <h2 className="text-4xl font-bold mb-6 text-gradient">About Kiarutara</h2>
-                
+
                 {aboutContent ? (
                   <div className="space-y-6 text-muted-foreground text-lg leading-relaxed" data-testid="text-about-content">
                     <p>{aboutContent.content}</p>
@@ -405,7 +405,7 @@ export default function Landing() {
                     </p>
                   </div>
                 )}
-                
+
                 <div className="mt-8 grid grid-cols-3 gap-6">
                   <div className="text-center glass rounded-xl p-6 backdrop-blur-lg hover-lift group animate-fade-in-up delay-100">
                     <div className="text-3xl font-bold text-gradient mb-2" data-testid="text-stat-albums">
@@ -458,12 +458,12 @@ export default function Landing() {
             </p>
             <div className="w-24 h-1 bg-primary mx-auto mt-6 animate-pulse-gentle"></div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {songs?.length ? (
               songs.map((song: any, index: number) => (
-                <Card 
-                  key={song.id} 
+                <Card
+                  key={song.id}
                   className="glass backdrop-blur-lg hover-lift animate-fade-in-up group"
                   style={{ animationDelay: `${index * 100}ms` }}
                   data-testid={`card-song-${song.id}`}
@@ -477,7 +477,7 @@ export default function Landing() {
                         <Star className="h-4 w-4 text-white animate-spin-slow" />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <h3 className="font-semibold text-lg group-hover:text-primary transition-colors" data-testid={`text-song-title-${song.id}`}>
@@ -487,10 +487,10 @@ export default function Landing() {
                           {song.artist || "MWANZO BOYS"}
                         </p>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
-                        <Button 
-                          size="icon" 
+                        <Button
+                          size="icon"
                           className="rounded-full bg-primary hover:bg-primary/90 hover:scale-110 transition-transform animate-pulse-gentle group/play"
                           data-testid={`button-play-song-${song.id}`}
                         >
@@ -507,12 +507,12 @@ export default function Landing() {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="flex space-x-2">
                         {song.youtubeUrl && (
-                          <Button 
-                            variant="destructive" 
-                            size="sm" 
+                          <Button
+                            variant="destructive"
+                            size="sm"
                             className="flex-1 hover-lift group/youtube"
                             data-testid={`button-youtube-${song.id}`}
                           >
@@ -520,9 +520,9 @@ export default function Landing() {
                             YouTube
                           </Button>
                         )}
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           className="flex-1 hover-lift group/website"
                           data-testid={`button-website-${song.id}`}
                         >
@@ -566,17 +566,17 @@ export default function Landing() {
             </p>
             <div className="w-24 h-1 bg-primary mx-auto mt-6 animate-pulse-gentle"></div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div className="animate-fade-in-left">
               <div className="glass rounded-2xl p-8 backdrop-blur-lg">
                 <h3 className="text-2xl font-bold mb-6 text-gradient">Contact Information</h3>
-                
+
                 <div className="space-y-6">
                   {contacts?.length ? (
                     contacts.map((contact: any, index: number) => (
-                      <div 
-                        key={contact.id} 
+                      <div
+                        key={contact.id}
                         className="glass backdrop-blur-lg rounded-xl p-6 flex items-center space-x-4 hover-lift group animate-fade-in-up"
                         style={{ animationDelay: `${index * 100}ms` }}
                         data-testid={`contact-item-${contact.id}`}
@@ -606,7 +606,7 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-            
+
             <div className="animate-fade-in-right">
               <Card className="glass backdrop-blur-lg hover-lift">
                 <CardContent className="p-8">
@@ -616,29 +616,29 @@ export default function Landing() {
                     </div>
                     <h3 className="text-2xl font-bold text-gradient">Send us a message</h3>
                   </div>
-                  
+
                   <form className="space-y-6" data-testid="form-contact">
                     <div className="space-y-2">
                       <Label htmlFor="name" className="text-sm font-medium">Name</Label>
-                      <Input 
-                        id="name" 
+                      <Input
+                        id="name"
                         className="glass border-primary/20 focus:border-primary"
-                        placeholder="Your name" 
-                        data-testid="input-name" 
+                        placeholder="Your name"
+                        data-testid="input-name"
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
+                      <Input
+                        id="email"
+                        type="email"
                         className="glass border-primary/20 focus:border-primary"
-                        placeholder="your@email.com" 
-                        data-testid="input-email" 
+                        placeholder="your@email.com"
+                        data-testid="input-email"
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="subject" className="text-sm font-medium">Subject</Label>
                       <Select>
@@ -653,21 +653,21 @@ export default function Landing() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="message" className="text-sm font-medium">Message</Label>
-                      <Textarea 
-                        id="message" 
-                        rows={5} 
+                      <Textarea
+                        id="message"
+                        rows={5}
                         className="glass border-primary/20 focus:border-primary"
-                        placeholder="Your message..." 
-                        data-testid="textarea-message" 
+                        placeholder="Your message..."
+                        data-testid="textarea-message"
                       />
                     </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full hover-lift glass animate-pulse-gentle" 
+
+                    <Button
+                      type="submit"
+                      className="w-full hover-lift glass animate-pulse-gentle"
                       data-testid="button-send-message"
                     >
                       <Send className="mr-2 h-4 w-4" />
@@ -697,7 +697,7 @@ export default function Landing() {
               <p className="text-muted-foreground mb-6 max-w-md text-lg">
                 Experience authentic music that transcends boundaries. Follow our journey and stay connected with the latest updates, releases, and performances.
               </p>
-              
+
               <div className="flex space-x-4">
                 {socialMedia?.length ? (
                   socialMedia.filter((social: any) => social.isActive).map((social: any) => (
@@ -729,7 +729,7 @@ export default function Landing() {
                 )}
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4 text-lg">Quick Links</h4>
               <ul className="space-y-3 text-muted-foreground">
@@ -740,7 +740,7 @@ export default function Landing() {
                 <li><button onClick={() => scrollToSection("contact")} className="hover:text-primary transition-colors hover-lift text-lg" data-testid="link-footer-contact">Contact</button></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4 text-lg">Support</h4>
               <ul className="space-y-3 text-muted-foreground">
@@ -750,7 +750,7 @@ export default function Landing() {
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p className="text-lg">&copy; 2024 Kiarutara MWANZO BOYS. All rights reserved.</p>
             <div className="flex justify-center space-x-2 mt-4">

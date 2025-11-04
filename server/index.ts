@@ -41,7 +41,7 @@ const allowedOrigins = [
   "http://localhost:5173",
 ].filter(Boolean) as string[];
 
-const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/; // allow any Auth0 domain
+const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/;
 
 app.use(
   cors({
@@ -49,7 +49,6 @@ app.use(
       if (!origin) return callback(null, true); // allow curl/mobile requests
 
       const normalizedOrigin = origin.replace(/\/$/, "");
-
       const isAllowed =
         allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
         auth0OriginPattern.test(normalizedOrigin);
@@ -69,22 +68,10 @@ app.use(
 
 app.options("*", cors());
 
-// index.ts
-// index.ts (or wherever Express routes are)
-app.get("/login", (req, res) => {
-  if (!req.oidc) {
-    return res.status(500).send("OIDC not configured");
-  }
-  res.oidc.login({
-    returnTo: process.env.FRONTEND_URL || "http://localhost:5173",
-  });
-});
-
-app.get("/callback", (req, res) => {
-  // Auth0 redirects here after login
-  res.redirect(process.env.FRONTEND_URL || "http://localhost:5173");
-});
-
+/* --------------------- BODY PARSERS --------------------- */
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+app.disable("x-powered-by");
 
 /* --------------------- RATE LIMIT --------------------- */
 app.use(
@@ -97,11 +84,6 @@ app.use(
   })
 );
 
-/* --------------------- BODY PARSERS --------------------- */
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: false, limit: "10mb" }));
-app.disable("x-powered-by");
-
 /* --------------------- AUTH0 CONFIG --------------------- */
 const authConfig = {
   authRequired: false,
@@ -109,10 +91,22 @@ const authConfig = {
   secret: process.env.AUTH0_SECRET!,
   baseURL: process.env.BASE_URL!,
   clientID: process.env.CLIENT_ID!,
-  issuerBaseURL: process.env.ISSUER_BASE_URL || `https://${process.env.AUTH0_DOMAIN}`,
+  issuerBaseURL: process.env.ISSUER_BASE_URL!,
 };
 
 app.use(auth(authConfig));
+
+/* --------------------- LOGIN / CALLBACK --------------------- */
+app.get("/login", (req, res) => {
+  if (!req.oidc) return res.status(500).send("OIDC not configured");
+  res.oidc.login({
+    returnTo: process.env.FRONTEND_URL || "http://localhost:5173",
+  });
+});
+
+app.get("/callback", (req, res) => {
+  res.redirect(process.env.FRONTEND_URL || "http://localhost:5173");
+});
 
 /* --------------------- LOGOUT ROUTE --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
@@ -143,11 +137,9 @@ app.get("/api/auth/user", async (req: any, res: any) => {
     const lastName = user.family_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // Check database
     const existing = await db.execute(sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`);
     let dbUser = existing.rows[0];
 
-    // Insert new user if not exists
     if (!dbUser) {
       const role = "user";
       const inserted = await db.execute(sql`
@@ -158,7 +150,6 @@ app.get("/api/auth/user", async (req: any, res: any) => {
       dbUser = inserted.rows[0];
     }
 
-    // Return safe user data
     const { password, ...safeUser } = dbUser as any;
     return res.json({ ...safeUser, name: fullName });
   } catch (err) {
