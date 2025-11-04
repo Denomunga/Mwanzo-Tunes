@@ -70,6 +70,7 @@ app.use(
 app.options("*", cors());
 
 // index.ts
+// index.ts (or wherever Express routes are)
 app.get("/login", (req, res) => {
   if (!req.oidc) {
     return res.status(500).send("OIDC not configured");
@@ -77,6 +78,11 @@ app.get("/login", (req, res) => {
   res.oidc.login({
     returnTo: process.env.FRONTEND_URL || "http://localhost:5173",
   });
+});
+
+app.get("/callback", (req, res) => {
+  // Auth0 redirects here after login
+  res.redirect(process.env.FRONTEND_URL || "http://localhost:5173");
 });
 
 
