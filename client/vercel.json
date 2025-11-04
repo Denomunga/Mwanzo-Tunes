@@ -1,9 +1,12 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
@@ -12,8 +15,28 @@
       "dest": "https://mwanzo-tunes-server.onrender.com/api/$1"
     },
     {
+      "src": "/login",
+      "dest": "https://mwanzo-tunes-server.onrender.com/login"
+    },
+    {
+      "src": "/callback",
+      "dest": "https://mwanzo-tunes-server.onrender.com/api/callback"
+    },
+    {
+      "src": "/api/logout",
+      "dest": "https://mwanzo-tunes-server.onrender.com/api/logout"
+    },
+    {
+      "src": "/profile",
+      "dest": "https://mwanzo-tunes-server.onrender.com/profile"
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "https://mwanzo-tunes-server.onrender.com/uploads/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/dist/index.html"
+      "dest": "/dist/$1"
     }
   ]
 }
