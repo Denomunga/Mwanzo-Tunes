@@ -19,7 +19,7 @@
       "dest": "https://mwanzo-tunes-server.onrender.com/login"
     },
     {
-      "src": "/callback",
+      "src": "/api/callback",  
       "dest": "https://mwanzo-tunes-server.onrender.com/api/callback"
     },
     {

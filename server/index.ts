@@ -110,16 +110,16 @@ app.get("/login", (req, res) => {
   }
 });
 
-app.get("/callback", (req, res) => {
-  try {
-    // Optionally, you can verify the user session here if needed
-    // Then just redirect to frontend callback page
-    res.redirect(`${process.env.FRONTEND_URL}/callback`);
-  } catch (err) {
-    console.error("Callback error:", err);
-    res.status(500).send("Callback failed");
-  }
-});
+// app.get("/callback", (req, res) => {
+//   try {
+//     // Optionally, you can verify the user session here if needed
+//     // Then just redirect to frontend callback page
+//     res.redirect(`${process.env.FRONTEND_URL}/callback`);
+//   } catch (err) {
+//     console.error("Callback error:", err);
+//     res.status(500).send("Callback failed");
+//   }
+// });
 
 /* --------------------- LOGOUT ROUTE --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
