@@ -99,13 +99,10 @@ app.use(auth(authConfig));
 /* --------------------- LOGIN / CALLBACK --------------------- */
 app.get("/login", (req, res) => {
   try {
-    if (!req.oidc) {
-      return res.status(500).send("OIDC not configured");
-    }
+    if (!req.oidc) return res.status(500).send("OIDC not configured");
 
-    // Redirect to Auth0 login page
     res.oidc.login({
-      returnTo: process.env.FRONTEND_URL + "/callback", // MUST match one of the Allowed Callback URLs
+      returnTo: `${process.env.FRONTEND_URL}/callback`, // must match allowed callback URLs
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -115,13 +112,15 @@ app.get("/login", (req, res) => {
 
 app.get("/callback", (req, res) => {
   try {
-    // After Auth0 login, redirect users to the homepage
-    res.redirect(process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app");
+    // Optionally, you can verify the user session here if needed
+    // Then just redirect to frontend callback page
+    res.redirect(`${process.env.FRONTEND_URL}/callback`);
   } catch (err) {
     console.error("Callback error:", err);
     res.status(500).send("Callback failed");
   }
 });
+
 /* --------------------- LOGOUT ROUTE --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
   try {
