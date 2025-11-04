@@ -1,19 +1,17 @@
 // server/index.ts
 import "dotenv/config";
 import express from "express";
-import { registerRoutes } from "./routes.js";
-import { setupVite, log } from "./vite.js";
 import { createServer } from "http";
 import path from "path";
-import { db } from "./db.js";
-import songsRouter from "./routes/songs.js";
-import { sql } from "drizzle-orm";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-
-// IMPORT FROM auth.ts
-import { authMiddleware, isAuthenticated, userRoute } from "./auth.js";
+import { auth, requiresAuth } from "express-openid-connect";
+import { registerRoutes } from "./routes.js";
+import songsRouter from "./routes/songs.js";
+import { db } from "./db.js";
+import { sql } from "drizzle-orm";
+import { setupVite, log } from "./vite.js";
 
 const app = express();
 
@@ -40,7 +38,6 @@ const allowedOrigins = [
   process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
-  "https://mwanzotunes-1efp5uui9-denos-projects-1cfdba9d.vercel.app", // Add your other frontend here
 ].filter(Boolean);
 
 app.use(
@@ -64,7 +61,7 @@ app.options("*", cors());
 /* --------------------- RATE LIMITER --------------------- */
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 100,
     message: "Too many requests from this IP, please try again later.",
   })
@@ -75,34 +72,24 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.disable("x-powered-by");
 
-/* --------------------- AUTH0 --------------------- */
-app.use(authMiddleware);
+/* --------------------- AUTH0 CONFIG --------------------- */
+const authConfig = {
+  authRequired: false, // users can access public routes without login
+  auth0Logout: true,
+  secret: process.env.AUTH0_SECRET!,
+  baseURL: process.env.BASE_URL!, // your server URL
+  clientID: process.env.CLIENT_ID!,
+  issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`,
+};
+app.use(auth(authConfig));
 
-/* --------------------- LOGIN ROUTE --------------------- */
-app.get("/api/login", (req, res) => {
-  const auth0Url = new URL(`https://${process.env.AUTH0_DOMAIN}/authorize`);
-  auth0Url.searchParams.append("response_type", "code");
-  auth0Url.searchParams.append("client_id", process.env.CLIENT_ID!);
-  auth0Url.searchParams.append("redirect_uri", `${process.env.BASE_URL}/api/callback`);
-  auth0Url.searchParams.append("scope", "openid profile email");
-  auth0Url.searchParams.append("state", Math.random().toString(36).substring(7));
-  res.redirect(auth0Url.toString());
+/* --------------------- AUTH / USER ROUTES --------------------- */
+// Protected profile route
+app.get("/profile", requiresAuth(), (req, res) => {
+  res.json(req.oidc.user);
 });
 
-/* --------------------- USER ROUTE --------------------- */
-app.get("/api/auth/user", isAuthenticated, userRoute);
-
-/* --------------------- LOGOUT --------------------- */
-app.get("/api/logout", (req: any, res: any) => {
-  res.oidc.logout({
-    returnTo: process.env.FRONTEND_URL || "https://mwanzotunes.vercel.app",
-  });
-});
-
-/* --------------------- FILE SERVING --------------------- */
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), { dotfiles: "deny", index: false }));
-
-/* --------------------- HEALTH CHECK --------------------- */
+// Health check
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
     status: "OK",
@@ -111,28 +98,32 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-/* --------------------- PROTECTED EXAMPLE --------------------- */
-app.get("/profile", isAuthenticated, (req: any, res: any) => {
-  res.json(req.user);
-});
+/* --------------------- STATIC FILE SERVING --------------------- */
+app.use(
+  "/uploads",
+  express.static(path.join(process.cwd(), "uploads"), {
+    dotfiles: "deny",
+    index: false,
+  })
+);
 
-/* --------------------- MAIN SERVER --------------------- */
+/* --------------------- REGISTER API ROUTES --------------------- */
 async function startServer() {
   const server = createServer(app);
 
   try {
     await db.execute(sql`SELECT 1`);
-    log("✅ Database connection verified");
+    log("Database connection verified");
   } catch (err) {
-    console.error("❌ Database connection failed:", err);
+    console.error("Database connection failed:", err);
     process.exit(1);
   }
 
   try {
     await registerRoutes(app as any);
-    log("✅ Routes registered successfully");
+    log("Routes registered successfully");
   } catch (err) {
-    console.error("❌ Failed to register routes:", err);
+    console.error("Failed to register routes:", err);
   }
 
   app.use("/api/songs", songsRouter);
@@ -154,12 +145,12 @@ async function startServer() {
   }
 
   server.listen(port, host, () => {
-    log(`🚀 Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
-    log(`🌐 Allowed CORS origins: ${allowedOrigins.join(", ")}`);
+    log(`Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
+    log(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error("❌ Failed to start server:", err);
+  console.error("Failed to start server:", err);
   process.exit(1);
 });
