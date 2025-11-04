@@ -41,10 +41,20 @@ const allowedOrigins = [
   "http://localhost:5173",
 ].filter(Boolean) as string[];
 
+const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/; // allow any Auth0 domain
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true); // allow curl/mobile requests
+
+      const normalizedOrigin = origin.replace(/\/$/, "");
+
+      const isAllowed =
+        allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
+        auth0OriginPattern.test(normalizedOrigin);
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         console.warn("Blocked CORS request from:", origin);
