@@ -29,7 +29,7 @@ export const authConfig = {
  session: {
   name: "mwanzo_auth",
   rolling: true,
-  cookieMaxAge: 24 * 60 * 60 * 1000, // ← 24 hours
+  absoluteDuration: 24 * 60 * 60, // // ← 24 hours
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
