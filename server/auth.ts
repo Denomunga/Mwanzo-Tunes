@@ -14,9 +14,11 @@ export const authConfig = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET!,
-  baseURL: process.env.BASE_URL!, // https://mwanzo-tunes-server.onrender.com
+  baseURL: "https://mwanzo-tunes-server.onrender.com", // https://mwanzo-tunes-server.onrender.com
   clientID: process.env.CLIENT_ID!,
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
+
+  
   // ✅ REMOVED all custom routes - let library handle defaults
 };
 
