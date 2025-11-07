@@ -12,7 +12,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { authMiddleware } from "./auth.js";
-import { requiresAuth } from "express-openid-connect";
+import pkg from "express-openid-connect";
+const { requiresAuth } = pkg;
 
 const app = express();
 
