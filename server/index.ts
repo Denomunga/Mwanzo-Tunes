@@ -43,28 +43,28 @@ const allowedOrigins = [
 
 const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/;
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow curl/mobile requests
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       if (!origin) return callback(null, true); // allow curl/mobile requests
 
-      const normalizedOrigin = origin.replace(/\/$/, "");
-      const isAllowed =
-        allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
-        auth0OriginPattern.test(normalizedOrigin);
+//       const normalizedOrigin = origin.replace(/\/$/, "");
+//       const isAllowed =
+//         allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
+//         auth0OriginPattern.test(normalizedOrigin);
 
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        console.warn("Blocked CORS request from:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
+//       if (isAllowed) {
+//         callback(null, true);
+//       } else {
+//         console.warn("Blocked CORS request from:", origin);
+//         callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     credentials: true,
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+//   })
+// );
 
 app.options("*", cors());
 
