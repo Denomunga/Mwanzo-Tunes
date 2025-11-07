@@ -9,39 +9,15 @@ import { storage } from "./storage.js";
 
 dotenv.config();
 
-// === AUTH0 CONFIGURATION (SECURE + BACKEND-ONLY) ===
+// === SIMPLE AUTH0 CONFIGURATION (BACK TO WORKING VERSION) ===
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET!,
-  baseURL: process.env.BASE_URL!, // RENDER URL: https://mwanzo-tunes-server.onrender.com
+  baseURL: process.env.BASE_URL!, // https://mwanzo-tunes-server.onrender.com
   clientID: process.env.CLIENT_ID!,
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
-
-  // ✅ FIXED: Use consistent callback route
-  routes: {
-    login: false as const,
-    callback: "/api/callback", // Use /api/callback to match your Express routes
-    logout: "/api/logout",
-  },
-
-  // ❌ REMOVE authorizationParams - let the library handle it automatically
-  // authorizationParams: {
-  //   response_type: "code",
-  //   redirect_uri: process.env.BASE_URL, // This causes conflicts
-  // },
-
-  // SECURE HTTP-ONLY COOKIE
-  session: {
-    name: "mwanzo_auth",
-    rolling: true,
-    absoluteDuration: 24 * 60 * 60, // 24 hours
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Lax",
-    },
-  },
+  // ✅ REMOVED all custom routes - let library handle defaults
 };
 
 export const authMiddleware = auth(authConfig);

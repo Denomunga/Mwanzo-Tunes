@@ -11,9 +11,7 @@ import { sql } from "drizzle-orm";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { authMiddleware } from "./auth.js";
-import pkg from "express-openid-connect";
-const { requiresAuth } = pkg;
+import { authMiddleware, isAuthenticated } from "./auth.js";
 
 const app = express();
 
@@ -42,18 +40,12 @@ const allowedOrigins = [
   "http://localhost:5173",
 ].filter(Boolean) as string[];
 
-const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/;
-
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow curl/mobile requests
-
+      if (!origin) return callback(null, true);
       const normalizedOrigin = origin.replace(/\/$/, "");
-      const isAllowed =
-        allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
-        auth0OriginPattern.test(normalizedOrigin);
-
+      const isAllowed = allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin);
       if (isAllowed) {
         callback(null, true);
       } else {
@@ -88,28 +80,11 @@ app.use(
 /* --------------------- AUTH0 MIDDLEWARE --------------------- */
 app.use(authMiddleware);
 
-/* --------------------- LOGIN ROUTE --------------------- */
-app.get("/login", (req: any, res: any) => {
-  try {
-    if (!req.oidc) return res.status(500).send("OIDC not configured");
-
-    res.oidc.login({
-      returnTo: process.env.FRONTEND_URL, // Redirect to frontend after login
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).send("Login failed");
-  }
-});
-
-/* --------------------- LOGOUT ROUTE --------------------- */
+/* --------------------- LOGOUT ROUTE (SIMPLE) --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
   try {
-    if (!req.oidc?.isAuthenticated?.()) {
-      return res.status(400).json({ message: "Not authenticated" });
-    }
     res.oidc.logout({
-      returnTo: process.env.FRONTEND_URL || process.env.BASE_URL || "http://localhost:3000",
+      returnTo: process.env.BASE_URL || "http://localhost:4000",
     });
   } catch (err) {
     console.error("Logout error:", err);
@@ -117,7 +92,7 @@ app.get("/api/logout", (req: any, res: any) => {
   }
 });
 
-/* --------------------- AUTH USER ENDPOINT --------------------- */
+/* --------------------- AUTH USER ENDPOINT (SIMPLE) --------------------- */
 app.get("/api/auth/user", async (req: any, res: any) => {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
@@ -199,8 +174,11 @@ async function startServer() {
   // API routes
   app.use("/api/songs", songsRouter);
 
-  // Protected profile route
-  app.get("/profile", requiresAuth(), (req: any, res: any) => {
+  // ✅ SIMPLE PROTECTED PROFILE ROUTE (BACK TO ORIGINAL)
+  app.get("/profile", (req: any, res: any) => {
+    if (!req.oidc?.isAuthenticated?.()) {
+      return res.status(401).send("Unauthorized");
+    }
     res.json(req.oidc.user);
   });
 
@@ -238,6 +216,8 @@ async function startServer() {
   server.listen(port, host, () => {
     log(`Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
     log(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
+    log(`✅ Login available at: http://${host}:${port}/login`);
+    log(`✅ Logout available at: http://${host}:${port}/api/logout`);
   });
 }
 
