@@ -18,6 +18,10 @@
       "src": "/login",
       "dest": "https://mwanzo-tunes-server.onrender.com/login"
     },
+     {
+      "src": "/", 
+      "dest": "https://mwanzo-tunes-server.onrender.com/"
+    },
     
     {
       "src": "/api/logout",
