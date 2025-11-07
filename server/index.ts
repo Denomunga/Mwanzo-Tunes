@@ -110,17 +110,6 @@ app.get("/", (req: any, res: any) => {
 });
 
 /* --------------------- LOGIN / CALLBACK --------------------- */
- app.get("/login", (req, res) => {
-  try {     if (!req.oidc) return res.status(500).send("OIDC not configured");
-
-    res.oidc.login({
-      returnTo: `${process.env.FRONTEND_URL}`, // must match allowed callback URLs
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).send("Login failed");
-  }
-});
 
 // app.get("/callback", (req, res) => {
 //   try {

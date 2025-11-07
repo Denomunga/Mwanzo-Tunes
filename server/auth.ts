@@ -20,12 +20,12 @@ export const authConfig = {
 
   // CUSTOM ROUTES
   routes: {
-    login: false as const, 
-    // callback: "/callback", // We handle /api/login manually
+    login: false as const,
+     callback: "/", // We handle /api/login manually
     logout: "/api/logout",
   },
 
-   // ✅ Add this to handle the callback on the base URL
+  // ✅ Add this to handle the callback on the base URL
   authorizationParams: {
     response_type: "code",
     redirect_uri: process.env.BASE_URL, // Callback happens on base URL
