@@ -38,6 +38,7 @@ const allowedOrigins = [
   process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
+  "https://mwanzo-tunes.vercel.app",
 ].filter(Boolean) as string[];
 
 app.use(

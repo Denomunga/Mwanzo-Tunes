@@ -194,17 +194,15 @@ export default function Landing() {
                 </button>
 
                 {/* ✅ Fixed Auth0 Login Button */}
-                <button
-                  onClick={() => {
-                    // This will trigger the rewrite rule in vercel.json
-                    window.location.href = '/login';
-                  }}
-                  className="hover-lift glass px-6 py-2 rounded-xl flex items-center font-semibold text-white bg-primary hover:bg-primary/90 transition-all duration-300 animate-bounce-gentle"
+                 <Button 
+                  onClick={() => window.location.href = "/login"}
+                  className="hover-lift glass animate-bounce-gentle"
+                  data-testid="button-login"
                 >
                   <Sparkles className="mr-2 h-4 w-4 animate-spin-slow" />
                   Login
                   <Star className="ml-2 h-4 w-4 animate-pulse" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>
