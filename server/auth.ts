@@ -25,6 +25,13 @@ export const authConfig = {
     logout: "/api/logout",
   },
 
+   // ✅ Add this to handle the callback on the base URL
+  authorizationParams: {
+    response_type: "code",
+    redirect_uri: process.env.BASE_URL, // Callback happens on base URL
+  },
+
+
   // SECURE HTTP-ONLY COOKIE
   session: {
     name: "mwanzo_auth",
