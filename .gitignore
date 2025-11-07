@@ -1,7 +1,8 @@
 node_modules
 .DS_Store
 server/public
-vite.config.ts.*
+client/vite.config.ts.*
 *.tar.gz
-.env
+server/.env
 client/.env
+client/.env.production

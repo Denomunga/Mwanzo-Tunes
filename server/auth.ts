@@ -19,10 +19,10 @@ export const authConfig = {
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
 
   // CUSTOM ROUTES
-  routes: {
-    login: false as const,  // We handle /api/login manually
-    logout: "/api/logout",
-  },
+  // routes: {
+  //   login: false as const,  // We handle /api/login manually
+  //   logout: "/api/logout",
+  // },
 
   // SECURE HTTP-ONLY COOKIE
  session: {
@@ -34,14 +34,8 @@ export const authConfig = {
     secure: process.env.NODE_ENV === "production",
     sameSite: "Lax",
   },
-}, // 24 hours
+}, 
 
-  // AFTER LOGIN: Redirect to frontend
-  afterCallback: (req: any, res: any, session: any) => {
-    const frontend = process.env.FRONTEND_URL || "https://mwanzotunes.vercel.app";
-    res.setHeader('Location', frontend);
-    return session;
-  },
 };
 
 export const authMiddleware = auth(authConfig);
