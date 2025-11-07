@@ -20,7 +20,8 @@ export const authConfig = {
 
   // CUSTOM ROUTES
   routes: {
-    login: false as const,  // We handle /api/login manually
+    login: false as const, 
+    callback: "/callback", // We handle /api/login manually
     logout: "/api/logout",
   },
 
