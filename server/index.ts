@@ -99,15 +99,15 @@ app.use(auth(Config)as any);
 
 
 
-// Handle login success - redirect to frontend
-app.get("/", (req: any, res: any) => {
-  if (req.oidc?.isAuthenticated()) {
-    // If user just logged in, redirect to frontend
-    return res.redirect(process.env.FRONTEND_URL!);
-  }
-  // Otherwise, continue with normal response
-  res.json({ message: "Server is running" });
-});
+// // Handle login success - redirect to frontend
+// app.get("/", (req: any, res: any) => {
+//   if (req.oidc?.isAuthenticated()) {
+//     // If user just logged in, redirect to frontend
+//     return res.redirect(process.env.FRONTEND_URL!);
+//   }
+//   // Otherwise, continue with normal response
+//   res.json({ message: "Server is running" });
+// });
 
 // /* --------------------- LOGIN / CALLBACK --------------------- */
 //  app.get("/login", (req, res) => {
