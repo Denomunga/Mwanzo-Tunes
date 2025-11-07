@@ -18,32 +18,30 @@ export const authConfig = {
   clientID: process.env.CLIENT_ID!,
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
 
-  // CUSTOM ROUTES
+  // ✅ FIXED: Use consistent callback route
   routes: {
     login: false as const,
-     callback: "/", // We handle /api/login manually
+    callback: "/api/callback", // Use /api/callback to match your Express routes
     logout: "/api/logout",
   },
 
-  // ✅ Add this to handle the callback on the base URL
-  authorizationParams: {
-    response_type: "code",
-    redirect_uri: process.env.BASE_URL, // Callback happens on base URL
-  },
-
+  // ❌ REMOVE authorizationParams - let the library handle it automatically
+  // authorizationParams: {
+  //   response_type: "code",
+  //   redirect_uri: process.env.BASE_URL, // This causes conflicts
+  // },
 
   // SECURE HTTP-ONLY COOKIE
   session: {
     name: "mwanzo_auth",
     rolling: true,
-    absoluteDuration: 24 * 60 * 60, // // ← 24 hours
+    absoluteDuration: 24 * 60 * 60, // 24 hours
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Lax",
     },
   },
-
 };
 
 export const authMiddleware = auth(authConfig);

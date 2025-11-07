@@ -3,8 +3,6 @@ import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
-import pkg from "express-openid-connect";
-const { auth, requiresAuth } = pkg;
 import { createServer } from "http";
 import path from "path";
 import { db } from "./db.js";
@@ -13,6 +11,8 @@ import { sql } from "drizzle-orm";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { authMiddleware } from "./auth.js";
+import { requiresAuth } from "express-openid-connect";
 
 const app = express();
 
@@ -43,28 +43,28 @@ const allowedOrigins = [
 
 const auth0OriginPattern = /^https:\/\/.*\.auth0\.com$/;
 
-// app.use(
-//   cors({
-//     origin: (origin, callback) => {
-//       if (!origin) return callback(null, true); // allow curl/mobile requests
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow curl/mobile requests
 
-//       const normalizedOrigin = origin.replace(/\/$/, "");
-//       const isAllowed =
-//         allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
-//         auth0OriginPattern.test(normalizedOrigin);
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      const isAllowed =
+        allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin) ||
+        auth0OriginPattern.test(normalizedOrigin);
 
-//       if (isAllowed) {
-//         callback(null, true);
-//       } else {
-//         console.warn("Blocked CORS request from:", origin);
-//         callback(new Error("Not allowed by CORS"));
-//       }
-//     },
-//     credentials: true,
-//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-//   })
-// );
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        console.warn("Blocked CORS request from:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
 
 app.options("*", cors());
 
@@ -84,54 +84,22 @@ app.use(
   })
 );
 
-/* --------------------- AUTH0 CONFIG --------------------- */
-const Config = {
-  authRequired: false,
-  auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!,
-  baseURL: process.env.BASE_URL!,
-  clientID: process.env.CLIENT_ID!,
-  issuerBaseURL: process.env.ISSUER_BASE_URL!,
-};
+/* --------------------- AUTH0 MIDDLEWARE --------------------- */
+app.use(authMiddleware);
 
-app.use(auth(Config)as any);
+/* --------------------- LOGIN ROUTE --------------------- */
+app.get("/login", (req: any, res: any) => {
+  try {
+    if (!req.oidc) return res.status(500).send("OIDC not configured");
 
-
-
-
-// // Handle login success - redirect to frontend
-// app.get("/", (req: any, res: any) => {
-//   if (req.oidc?.isAuthenticated()) {
-//     // If user just logged in, redirect to frontend
-//     return res.redirect(process.env.FRONTEND_URL!);
-//   }
-//   // Otherwise, continue with normal response
-//   res.json({ message: "Server is running" });
-// });
-
-// /* --------------------- LOGIN / CALLBACK --------------------- */
-//  app.get("/login", (req, res) => {
-//   try {     if (!req.oidc) return res.status(500).send("OIDC not configured");
-
-//     res.oidc.login({
-//       returnTo: `${process.env.FRONTEND_URL}`, // must match allowed callback URLs
-//     });
-//   } catch (err) {
-//     console.error("Login error:", err);
-//     res.status(500).send("Login failed");
-//   }
-// });
-
-// app.get("/callback", (req, res) => {
-//   try {
-//     // Optionally, you can verify the user session here if needed
-//     // Then just redirect to frontend callback page
-//     res.redirect(`${process.env.FRONTEND_URL}/callback`);
-//   } catch (err) {
-//     console.error("Callback error:", err);
-//     res.status(500).send("Callback failed");
-//   }
-// });
+    res.oidc.login({
+      returnTo: process.env.FRONTEND_URL, // Redirect to frontend after login
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).send("Login failed");
+  }
+});
 
 /* --------------------- LOGOUT ROUTE --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
@@ -231,12 +199,12 @@ async function startServer() {
   app.use("/api/songs", songsRouter);
 
   // Protected profile route
-  app.get("/profile", requiresAuth(), (req, res) => {
+  app.get("/profile", requiresAuth(), (req: any, res: any) => {
     res.json(req.oidc.user);
   });
 
   // Health check
-  app.get("/api/health", (_req, res) => {
+  app.get("/api/health", (_req: any, res: any) => {
     res.status(200).json({
       status: "OK",
       timestamp: new Date().toISOString(),
@@ -261,7 +229,7 @@ async function startServer() {
     await setupVite(app as any, server as any);
   } else {
     serveStatic(app as any);
-    app.get("*", (_req, res) => {
+    app.get("*", (_req: any, res: any) => {
       res.sendFile(path.join(process.cwd(), "client", "dist", "index.html"));
     });
   }
