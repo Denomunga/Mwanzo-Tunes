@@ -19,10 +19,6 @@
       "dest": "https://mwanzo-tunes-server.onrender.com/login"
     },
     {
-      "src": "/api/callback",  
-      "dest": "https://mwanzo-tunes-server.onrender.com/api/callback"
-    },
-    {
       "src": "/api/logout",
       "dest": "https://mwanzo-tunes-server.onrender.com/api/logout"
     },

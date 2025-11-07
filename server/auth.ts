@@ -19,22 +19,22 @@ export const authConfig = {
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
 
   // CUSTOM ROUTES
-  // routes: {
-  //   login: false as const,  // We handle /api/login manually
-  //   logout: "/api/logout",
-  // },
+  routes: {
+    login: false as const,  // We handle /api/login manually
+    logout: "/api/logout",
+  },
 
   // SECURE HTTP-ONLY COOKIE
- session: {
-  name: "mwanzo_auth",
-  rolling: true,
-  absoluteDuration: 24 * 60 * 60, // // ← 24 hours
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Lax",
+  session: {
+    name: "mwanzo_auth",
+    rolling: true,
+    absoluteDuration: 24 * 60 * 60, // // ← 24 hours
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Lax",
+    },
   },
-}, 
 
 };
 
