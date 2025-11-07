@@ -62,11 +62,6 @@ app.use(
 
 app.options("*", cors());
 
-// ✅ This is your callback route
-app.get('/callback', (req, res) => {
-  // SUCCESSFUL LOGIN → Send user back to the frontend
-  res.redirect(`${process.env.FRONTEND_URL}`);
-});
 
 /* --------------------- BODY PARSERS --------------------- */
 app.use(express.json({ limit: "10mb" }));
@@ -86,6 +81,10 @@ app.use(
 
 /* --------------------- AUTH0 MIDDLEWARE --------------------- */
 app.use(authMiddleware);
+app.get("/callback", (req, res) => {
+  return res.redirect(process.env.FRONTEND_URL!);
+});
+
 
 /* --------------------- LOGOUT ROUTE (SIMPLE) --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
