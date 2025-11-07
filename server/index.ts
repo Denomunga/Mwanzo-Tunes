@@ -62,6 +62,12 @@ app.use(
 
 app.options("*", cors());
 
+// ✅ This is your callback route
+app.get('/callback', (req, res) => {
+  // SUCCESSFUL LOGIN → Send user back to the frontend
+  res.redirect(`${process.env.FRONTEND_URL}`);
+});
+
 /* --------------------- BODY PARSERS --------------------- */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
