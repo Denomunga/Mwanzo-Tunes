@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { setupVite, log } from "./vite.js";
 import { auth } from "express-openid-connect";
 import { createServer } from "http";
 import path from "path";
@@ -11,28 +11,28 @@ import { sql } from "drizzle-orm";
 
 const app = express();
 
-// Security: Express middleware setup
-app.use(express.json({ limit: "10mb" })); // Limit payload size
+// Middlewares
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 
-// Auth0 Configuration for secure authentication
+// Auth0 configuration
 const config = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET ?? "change_me",
-  baseURL: process.env.BASE_URL ?? "http://localhost:4000",
+  baseURL: process.env.FRONTEND_URL ?? "https://mwanzo-tunes.vercel.app",
   clientID: process.env.CLIENT_ID ?? "",
   issuerBaseURL: process.env.ISSUER_BASE_URL ?? "",
 };
 
-// Security: Attach Auth0 Middleware for authentication
+// Attach Auth0 middleware
 app.use(auth(config) as any);
 
-// Secure logout route
+// Logout route
 app.get("/api/logout", (req: any, res: any) => {
   try {
     res.oidc.logout({
-      returnTo: process.env.BASE_URL ?? "http://localhost:4000",
+      returnTo: process.env.FRONTEND_URL ?? "https://mwanzo-tunes.vercel.app",
     });
   } catch (err) {
     console.error("Logout error:", err);
@@ -40,7 +40,7 @@ app.get("/api/logout", (req: any, res: any) => {
   }
 });
 
-// User authentication endpoint with database synccc
+// Authenticated user endpoint
 app.get("/api/auth/user", async (req: any, res: any) => {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
@@ -54,15 +54,15 @@ app.get("/api/auth/user", async (req: any, res: any) => {
     const lastName = user.family_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // Check if user exists in databasee
+    // Check database for existing user
     const existing = await db.execute(
       sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`
     );
     let dbUser = existing.rows[0];
 
-    // Create new user if doesn't exist
+    // Insert new user if not found
     if (!dbUser) {
-      const role = "user"; // Default role for new users
+      const role = "user";
       const inserted = await db.execute(sql`
         INSERT INTO users (auth0_id, email, first_name, last_name, role)
         VALUES (${auth0Id}, ${email}, ${firstName}, ${lastName}, ${role})
@@ -71,30 +71,26 @@ app.get("/api/auth/user", async (req: any, res: any) => {
       dbUser = inserted.rows[0];
     }
 
-    return res.json({
-      ...dbUser,
-      name: fullName,
-    });
+    return res.json({ ...dbUser, name: fullName });
   } catch (err) {
     console.error("Database error in /api/auth/user:", err);
     return res.status(500).json({ error: "Database error" });
   }
 });
 
-// Security: Serve uploaded files with static middleware
+// Serve uploaded files (if needed)
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// API request logger (only logs API requests, not static files)
-app.use((req: any, res: any, next: any) => {
+// API request logger
+app.use((req, res, next) => {
   const start = Date.now();
   const url = req.path;
 
-  // Only log API requests
   if (url.startsWith("/api")) {
-    let capturedJsonResponse: any = undefined;
-
+    let capturedJsonResponse: any;
     const originalJson = res.json.bind(res);
-    res.json = function (body: any) {
+
+    res.json = (body: any) => {
       capturedJsonResponse = body;
       return originalJson(body);
     };
@@ -102,9 +98,6 @@ app.use((req: any, res: any, next: any) => {
     res.on("finish", () => {
       const duration = Date.now() - start;
       let line = `${req.method} ${url} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse)
-        line ;//+= ` :: ${JSON.stringify(capturedJsonResponse)}`;
-     // if (line.length > 400) line = line.slice(0, 399) + "…";
       log(line);
     });
   }
@@ -115,65 +108,58 @@ app.use((req: any, res: any, next: any) => {
 async function startServer() {
   const server = createServer(app);
 
-  // Security: Verify database connection before starting
+  // Verify database connection
   try {
     await db.execute(sql`SELECT 1`);
-    log("Database connection verified nigga!");
+    log("Database connection verified!");
   } catch (err) {
-    console.error("Database connection failed: check you code man", err);
+    console.error("Database connection failed:", err);
     process.exit(1);
   }
 
-  // Register all API routes
+  // Register API routes
   try {
     await registerRoutes(app as any);
-    log("Routes registered successfully.But Damn JavaScript is Hard Man!");
+    log("Routes registered successfully!");
   } catch (err) {
     console.error("Failed to register routes:", err);
   }
 
-  // API routes
+  // Mount songs router
   app.use("/api/songs", songsRouter);
 
-  // Security: Protected route 
+  // Protected profile route example
   app.get("/profile", (req: any, res: any) => {
     if (!req.oidc?.isAuthenticated?.()) {
-      return res.status(401).send("Unauthorized");
+      return res.status(401).json({ error: "Unauthorized" });
     }
     res.json(req.oidc.user);
   });
 
-  // Security: Global error handler
+  // Global error handler
   app.use((err: any, _req: any, res: any, _next: any) => {
-    const status = err?.status || err?.statusCode || 500;
+    const status = err?.status || 500;
     const message = err?.message || "Internal Server Error";
     console.error("Express Error:", { status, message });
-    // Security: Don't expose stack traces in production
     res.status(status).json({ message });
   });
 
-  const port = parseInt(process.env.PORT || "4000", 10);
-
-  // Development vs Production setup
+  // Development / production setup
   if (app.get("env") === "development") {
-    await setupVite(app as any, server as any);
-  } else {
-    serveStatic(app as any);
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(process.cwd(), "client", "dist", "index.html"));
-    });
+    await setupVite(app as any, server);
   }
 
-  // Security: Prevent double server starts
+  // Start server
+  const port = parseInt(process.env.PORT || "4000", 10);
   if (!(app as any).__serverStarted) {
     server.listen(port, "0.0.0.0", () => {
-      log(`Server running on http://0.0.0.0:${port} Cool RIGHT!!`);
+      log(`Server running on http://0.0.0.0:${port}`);
       (app as any).__serverStarted = true;
     });
   }
 }
 
-// Start the server with error handling
+// Start the server
 startServer().catch((err) => {
   console.error("Failed to start server:", err);
   process.exit(1);
