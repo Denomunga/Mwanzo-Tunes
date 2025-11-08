@@ -10,6 +10,19 @@ import { setupVite, log, serveStatic } from "./vite.js";
 import { auth } from "express-openid-connect";
 
 const app = express();
+import cors from "cors";
+
+const allowedOrigins = [
+  "https://mwanzo-tunes.vercel.app",
+  "https://mwanzo-tunes-geaf86nql-denos-projects-1cfdba9d.vercel.app",
+  "http://localhost:5173",
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 
 // --------------------
 // Middleware
