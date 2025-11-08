@@ -40,10 +40,11 @@ app.use(auth(config) as any);
 // Force login route
 // --------------------
 app.get("/login", (req: any, res: Response) => {
+  // Force Auth0 login page
   res.oidc.login({
-    returnTo: "/",
+    returnTo: "/", // redirect here after login
     authorizationParams: {
-      prompt: "login", // forces login page even if already authenticated
+      prompt: "login", // always show login page
     },
   });
 });

@@ -12,10 +12,10 @@ dotenv.config();
 // Auth0 Configuration
 // --------------------
 export const authConfig = {
-  authRequired: false,
+  authRequired: false, // Only protect routes that require auth
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET ?? "change_me",
-  baseURL: process.env.BASE_URL ?? "https://mwanzo-tunes.vercel.app",
+  baseURL: process.env.BASE_URL ?? "https://mwanzo-tunes-server.onrender.com",
   clientID: process.env.CLIENT_ID ?? "",
   issuerBaseURL: process.env.ISSUER_BASE_URL ?? "",
   authorizationParams: {
@@ -28,12 +28,16 @@ export const authConfig = {
 export const authMiddleware = auth(authConfig);
 
 // --------------------
-// Middleware: Check if user is authenticated
+// Middleware: Ensure user is authenticated
 // --------------------
 export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      // Force login
+      return res.oidc.login({
+        returnTo: req.originalUrl || "/",
+        authorizationParams: { prompt: "login" },
+      });
     }
 
     const userData = req.oidc.user as Record<string, any>;
@@ -42,7 +46,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
     const firstName = userData.given_name || "User";
     const lastName = userData.family_name || "";
 
-    // Check if user exists in database
+    // Check if user exists in DB
     const existing = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
     let user;
     if (existing.length > 0) {
@@ -58,7 +62,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
       });
     }
 
-    // Attach user to request for downstream routes
+    // Attach user to request
     (req as any).user = user;
     next();
   } catch (err) {
@@ -68,7 +72,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
 }
 
 // --------------------
-// Middleware: Require Admin Role
+// Middleware: Require admin role
 // --------------------
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   try {
@@ -97,7 +101,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 }
 
 // --------------------
-// Helper: Get current user (optional)
+// Helper: Get current user info
 // --------------------
 export async function getCurrentUser(req: Request, res: Response) {
   if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
