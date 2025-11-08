@@ -14,17 +14,21 @@ dotenv.config();
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!,
-  baseURL: process.env.BASE_URL!,
-  clientID: process.env.CLIENT_ID!,
-  issuerBaseURL: process.env.ISSUER_BASE_URL!,
+  secret: process.env.AUTH0_SECRET ?? "change_me",
+  baseURL: process.env.BASE_URL ?? "https://mwanzo-tunes.vercel.app",
+  clientID: process.env.CLIENT_ID ?? "",
+  issuerBaseURL: process.env.ISSUER_BASE_URL ?? "",
+  authorizationParams: {
+    response_type: "code",
+    scope: "openid profile email",
+  },
 };
 
-// Express middleware for Auth0
+// Attach Auth0 middleware
 export const authMiddleware = auth(authConfig);
 
 // --------------------
-// Authenticated User Middleware
+// Middleware: Check if user is authenticated
 // --------------------
 export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   try {
@@ -32,16 +36,17 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const auth0Id = req.oidc.user.sub;
-    const email = req.oidc.user.email;
-    const firstName = req.oidc.user.given_name || email || "User";
-    const lastName = req.oidc.user.family_name || "";
+    const userData = req.oidc.user as Record<string, any>;
+    const auth0Id = userData.sub;
+    const email = userData.email;
+    const firstName = userData.given_name || "User";
+    const lastName = userData.family_name || "";
 
-    // Check if user exists in DB
-    const existingUser = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
+    // Check if user exists in database
+    const existing = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
     let user;
-    if (existingUser.length > 0) {
-      user = existingUser[0]; // Existing user
+    if (existing.length > 0) {
+      user = existing[0]; // existing user
     } else {
       // Create new user with default role
       user = await storage.upsertUser({
@@ -53,6 +58,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
       });
     }
 
+    // Attach user to request for downstream routes
     (req as any).user = user;
     next();
   } catch (err) {
@@ -62,7 +68,7 @@ export async function isAuthenticated(req: Request, res: Response, next: NextFun
 }
 
 // --------------------
-// Admin Middleware
+// Middleware: Require Admin Role
 // --------------------
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   try {
@@ -91,37 +97,36 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 }
 
 // --------------------
-// User Route Handler
+// Helper: Get current user (optional)
 // --------------------
-export async function userRoute(req: Request, res: Response) {
+export async function getCurrentUser(req: Request, res: Response) {
+  if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
+    return res.status(401).json({ error: "Not logged in" });
+  }
+
+  const userData = req.oidc.user as Record<string, any>;
+  const auth0Id = userData.sub;
+  const email = userData.email;
+  const firstName = userData.given_name || "User";
+  const lastName = userData.family_name || "";
+
   try {
-    if (req.oidc?.isAuthenticated() && req.oidc.user) {
-      const auth0User = req.oidc.user as Record<string, any>;
-      const auth0Id = auth0User.sub;
-      const email = auth0User.email;
-      const firstName = auth0User.given_name || "Unnamed";
-      const lastName = auth0User.family_name || "";
+    const existing = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
+    let user = existing[0];
 
-      // Fetch or create user in DB
-      const result = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
-      let dbUser = result[0];
-
-      if (!dbUser) {
-        dbUser = await storage.upsertUser({
-          auth0Id,
-          email,
-          firstName,
-          lastName,
-          role: "user",
-        });
-      }
-
-      return res.json(dbUser);
+    if (!user) {
+      user = await storage.upsertUser({
+        auth0Id,
+        email,
+        firstName,
+        lastName,
+        role: "user",
+      });
     }
 
-    return res.status(401).json({ error: "Not logged in" });
+    return res.json(user);
   } catch (err) {
-    console.error("Database error in userRoute:", err);
+    console.error("Error fetching current user:", err);
     return res.status(500).json({ error: "Database error" });
   }
 }
