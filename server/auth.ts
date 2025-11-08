@@ -26,7 +26,7 @@ export const authConfig = {
     scope: "openid profile email"
   },
   routes: {
-    callback: "/callback",
+    //callback: "/callback",
     login: "/login", 
     logout: "/api/logout"
   },
@@ -50,26 +50,26 @@ export function handleLogin(req: Request, res: Response) {
   }
 }
 
-// === CALLBACK HANDLER ===
-export function handleCallback(req: Request, res: Response) {
-  try {
-    console.log("Auth0 callback received");
+// // === CALLBACK HANDLER ===
+// export function handleCallback(req: Request, res: Response) {
+//   try {
+//     console.log("Auth0 callback received");
     
-    if (req.oidc?.isAuthenticated()) {
-      console.log("User authenticated:", req.oidc.user?.email);
-      const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-      return res.redirect(frontendUrl);
-    } else {
-      console.log("Authentication failed");
-      const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-      return res.redirect(`${frontendUrl}?error=auth_failed`);
-    }
-  } catch (error) {
-    console.error("Callback handler error:", error);
-    const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-    return res.redirect(`${frontendUrl}?error=server_error`);
-  }
-}
+//     if (req.oidc?.isAuthenticated()) {
+//       console.log("User authenticated:", req.oidc.user?.email);
+//       const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
+//       return res.redirect(frontendUrl);
+//     } else {
+//       console.log("Authentication failed");
+//       const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
+//       return res.redirect(`${frontendUrl}?error=auth_failed`);
+//     }
+//   } catch (error) {
+//     console.error("Callback handler error:", error);
+//     const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
+//     return res.redirect(`${frontendUrl}?error=server_error`);
+//   }
+// }
 
 // === MIDDLEWARE: CHECK AUTH + SYNC USER ===
 export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
