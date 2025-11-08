@@ -166,8 +166,8 @@ async function startServer() {
 
   // Security: Prevent double server starts
   if (!(app as any).__serverStarted) {
-    server.listen(port, "127.0.0.1", () => {
-      log(`Server running on http://127.0.0.1:${port} Cool RIGHT!!`);
+    server.listen(port, "0.0.0.0", () => {
+      log(`Server running on http://0.0.0.0:${port} Cool RIGHT!!`);
       (app as any).__serverStarted = true;
     });
   }
