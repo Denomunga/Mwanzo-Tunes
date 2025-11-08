@@ -1,4 +1,3 @@
-// server/auth.ts
 import { auth } from "express-openid-connect";
 import dotenv from "dotenv";
 import type { Request, Response, NextFunction } from "express";
@@ -9,178 +8,96 @@ import { storage } from "./storage.js";
 
 dotenv.config();
 
-// ✅ FIXED: Using correct environment variable names from your Render config
+// Auth0 configuration for secure authentication
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!, // This matches your Render env var
+  secret: process.env.AUTH0_SECRET!,
   baseURL: process.env.BASE_URL!,
-  clientID: process.env.CLIENT_ID!, // This matches your Render env var
+  clientID: process.env.CLIENT_ID!,
   issuerBaseURL: process.env.ISSUER_BASE_URL!,
-  
-  // ✅ FIXED: Use CLIENT_SECRET (not AUTH0_CLIENT_SECRET)
-  clientSecret: process.env.CLIENT_SECRET!, // This matches your Render env var
-  
-  authorizationParams: {
-    response_type: "code",
-    scope: "openid profile email"
-  },
-  routes: {
-    //callback: "/callback",
-    login: "/login", 
-    logout: "/api/logout"
-  },
-  session: {
-    absoluteDuration: 7 * 24 * 60 * 60, // 7 days
-  }
 };
 
 export const authMiddleware = auth(authConfig);
 
-// === LOGIN HANDLER ===
-export function handleLogin(req: Request, res: Response) {
-  try {
-    console.log("Redirecting to Auth0 login...");
-    return res.oidc.login({
-      returnTo: process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app",
-    });
-  } catch (error) {
-    console.error("Login handler error:", error);
-    res.status(500).json({ message: "Login failed" });
-  }
-}
-
-// // === CALLBACK HANDLER ===
-// export function handleCallback(req: Request, res: Response) {
-//   try {
-//     console.log("Auth0 callback received");
-    
-//     if (req.oidc?.isAuthenticated()) {
-//       console.log("User authenticated:", req.oidc.user?.email);
-//       const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-//       return res.redirect(frontendUrl);
-//     } else {
-//       console.log("Authentication failed");
-//       const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-//       return res.redirect(`${frontendUrl}?error=auth_failed`);
-//     }
-//   } catch (error) {
-//     console.error("Callback handler error:", error);
-//     const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
-//     return res.redirect(`${frontendUrl}?error=server_error`);
-//   }
-// }
-
-// === MIDDLEWARE: CHECK AUTH + SYNC USER ===
+// Middleware to check if user is authenticated
 export async function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-
   const auth0Id = req.oidc.user.sub;
   const email = req.oidc.user.email;
-  const firstName = req.oidc.user.given_name || email?.split("@")[0] || "User";
+  const firstName = req.oidc.user.given_name || req.oidc.user.email || "User";
   const lastName = req.oidc.user.family_name || "";
 
-  try {
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.auth0Id, auth0Id))
-      .limit(1);
-
-    let user;
-    if (existingUser.length > 0) {
-      user = existingUser[0];
-    } else {
-      user = await storage.upsertUser({
-        auth0Id,
-        email,
-        firstName,
-        lastName,
-        role: "user",
-      });
-    }
-
-    (req as any).user = user;
-    next();
-  } catch (err) {
-    console.error("Auth middleware error:", err);
-    res.status(500).json({ message: "Server error" });
+  // Check if user exists
+  const existingUser = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
+  let user;
+  if (existingUser.length > 0) {
+    user = existingUser[0]; // Use existing user, preserving role
+    console.log('User role after sync:', users.role); // Debug log
+  } else {
+    // Create new user with default role
+    user = await storage.upsertUser({
+      auth0Id: auth0Id,
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      role: "user",
+    });
   }
+  (req as any).user = user;
+  next();
 }
 
-// === MIDDLEWARE: REQUIRE ADMIN ===
+// Middleware to require admin privileges
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     const auth0Id = req.oidc.user.sub;
-    const result = await db
-      .select()
-      .from(users)
-      .where(eq(users.auth0Id, auth0Id))
-      .limit(1);
-
+    const result = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
     const user = result[0];
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ message: "Admin access required" });
+    if (!user) {
+      return res.status(403).json({ message: "User not found, admin access denied" });
     }
-
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Admin required" });
+    }
     (req as any).user = user;
     next();
   } catch (err) {
-    console.error("requireAdmin error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in requireAdmin middleware:", err);
+    res.status(500).json({ message: "Server error while checking admin role" });
   }
 }
 
-// === ROUTE: GET CURRENT USER ===
+// User route handler
 export async function userRoute(req: Request, res: Response) {
-  if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
-    return res.status(401).json({ error: "Not logged in" });
-  }
-
-  const auth0Id = req.oidc.user.sub;
-
-  try {
-    let dbUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.auth0Id, auth0Id))
-      .limit(1)
-      .then(rows => rows[0]);
-
-    if (!dbUser) {
-      dbUser = await storage.upsertUser({
-        auth0Id,
-        email: req.oidc.user.email,
-        firstName: req.oidc.user.given_name || "User",
-        lastName: req.oidc.user.family_name || "",
-        role: "user",
-      });
+  if (req.oidc?.isAuthenticated() && req.oidc.user) {
+    const user = req.oidc.user as Record<string, any>;
+    const auth0Id = user.sub;
+    const email = user.email;
+    const firstName = user.given_name || "Unnamed";
+    const lastName = user.family_name || "";
+    try {
+      const result = await db.select().from(users).where(eq(users.auth0Id, auth0Id)).limit(1);
+      let dbUser = result[0];
+      if (!dbUser) {
+        dbUser = await storage.upsertUser({
+          auth0Id,
+          email,
+          firstName,
+          lastName,
+          role: "user",
+        });
+      }
+      return res.json(dbUser);
+    } catch (err) {
+      console.error("Database error in userRoute:", err);
+      return res.status(500).json({ error: "Database error" });
     }
-
-    return res.json(dbUser);
-  } catch (err) {
-    console.error("userRoute error:", err);
-    return res.status(500).json({ error: "Database error" });
   }
-}
-
-// === CHECK AUTH STATUS ===
-export function checkAuthStatus(req: Request, res: Response) {
-  if (req.oidc?.isAuthenticated()) {
-    res.json({
-      isAuthenticated: true,
-      user: req.oidc.user
-    });
-  } else {
-    res.json({
-      isAuthenticated: false,
-      user: null
-    });
-  }
+  return res.status(401).json({ error: "Not logged in" });
 }

@@ -1,112 +1,38 @@
-// server/index.ts
 import "dotenv/config";
 import express from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
+import { auth } from "express-openid-connect";
 import { createServer } from "http";
 import path from "path";
 import { db } from "./db.js";
 import songsRouter from "./routes/songs.js";
 import { sql } from "drizzle-orm";
-import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
-import { authMiddleware, isAuthenticated } from "./auth.js";
 
 const app = express();
 
-/* --------------------- SECURITY HEADERS --------------------- */
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        scriptSrc: ["'self'"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https:", "wss:"],
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  })
-);
-
-/* --------------------- CORS CONFIG --------------------- */
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.BASE_URL,
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "https://mwanzo-tunes.vercel.app",
-  "https://dev-b7iml26mefi4x8a4.us.auth0.com",
-  "https://mwanzo-tunes-git-main-denomungas-projects.vercel.app",
-].filter(Boolean) as string[];
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      
-      const normalizedOrigin = origin.replace(/\/$/, "");
-      const isAllowed = allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin);
-      
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        console.warn("Blocked CORS request from:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
-
-app.options("*", cors());
-
-/* --------------------- BODY PARSERS --------------------- */
-app.use(express.json({ limit: "10mb" }));
+// Security: Express middleware setup
+app.use(express.json({ limit: "10mb" })); // Limit payload size
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
-app.disable("x-powered-by");
 
-/* --------------------- RATE LIMIT --------------------- */
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: "Too many requests from this IP, please try again later.",
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
+// Auth0 Configuration for secure authentication
+const config = {
+  authRequired: false,
+  auth0Logout: true,
+  secret: process.env.AUTH0_SECRET ?? "change_me",
+  baseURL: process.env.BASE_URL ?? "http://localhost:4000",
+  clientID: process.env.CLIENT_ID ?? "",
+  issuerBaseURL: process.env.ISSUER_BASE_URL ?? "",
+};
 
-/* --------------------- AUTH0 MIDDLEWARE --------------------- */
-app.use(authMiddleware);
+// Security: Attach Auth0 Middleware for authentication
+app.use(auth(config) as any);
 
-// ✅ FIXED: Remove custom /callback route - let Auth0 middleware handle it automatically
-// The express-openid-connect middleware automatically handles the /callback route
-// DO NOT create a custom /callback route as it interferes with the OAuth flow
-
-/* --------------------- LOGIN ROUTE (REDIRECTS TO AUTH0) --------------------- */
-app.get("/login", (req: any, res: any) => {
-  try {
-    console.log("Redirecting to Auth0 login...");
-    return res.oidc.login({
-      returnTo: process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app",
-    });
-  } catch (err) {
-    console.error("Login redirect error:", err);
-    res.status(500).json({ message: "Login failed" });
-  }
-});
-
-/* --------------------- LOGOUT ROUTE --------------------- */
+// Secure logout route
 app.get("/api/logout", (req: any, res: any) => {
   try {
     res.oidc.logout({
-      returnTo: process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app",
+      returnTo: process.env.BASE_URL ?? "http://localhost:4000",
     });
   } catch (err) {
     console.error("Logout error:", err);
@@ -114,7 +40,7 @@ app.get("/api/logout", (req: any, res: any) => {
   }
 });
 
-/* --------------------- AUTH USER ENDPOINT --------------------- */
+// User authentication endpoint with database synccc
 app.get("/api/auth/user", async (req: any, res: any) => {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
@@ -128,11 +54,15 @@ app.get("/api/auth/user", async (req: any, res: any) => {
     const lastName = user.family_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    const existing = await db.execute(sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`);
+    // Check if user exists in databasee
+    const existing = await db.execute(
+      sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`
+    );
     let dbUser = existing.rows[0];
 
+    // Create new user if doesn't exist
     if (!dbUser) {
-      const role = "user";
+      const role = "user"; // Default role for new users
       const inserted = await db.execute(sql`
         INSERT INTO users (auth0_id, email, first_name, last_name, role)
         VALUES (${auth0Id}, ${email}, ${firstName}, ${lastName}, ${role})
@@ -141,54 +71,63 @@ app.get("/api/auth/user", async (req: any, res: any) => {
       dbUser = inserted.rows[0];
     }
 
-    const { password, ...safeUser } = dbUser as any;
-    return res.json({ ...safeUser, name: fullName });
+    return res.json({
+      ...dbUser,
+      name: fullName,
+    });
   } catch (err) {
     console.error("Database error in /api/auth/user:", err);
     return res.status(500).json({ error: "Database error" });
   }
 });
 
-/* --------------------- STATIC FILES --------------------- */
-app.use(
-  "/uploads",
-  express.static(path.join(process.cwd(), "uploads"), { dotfiles: "deny", index: false })
-);
+// Security: Serve uploaded files with static middleware
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-/* --------------------- REQUEST LOGGER --------------------- */
+// API request logger (only logs API requests, not static files)
 app.use((req: any, res: any, next: any) => {
   const start = Date.now();
-  if (req.path.startsWith("/api")) {
+  const url = req.path;
+
+  // Only log API requests
+  if (url.startsWith("/api")) {
+    let capturedJsonResponse: any = undefined;
+
     const originalJson = res.json.bind(res);
-    res.json = (body: any) => {
-      res.locals.body = body;
+    res.json = function (body: any) {
+      capturedJsonResponse = body;
       return originalJson(body);
     };
+
     res.on("finish", () => {
       const duration = Date.now() - start;
-      log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
+      let line = `${req.method} ${url} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse)
+        line ;//+= ` :: ${JSON.stringify(capturedJsonResponse)}`;
+     // if (line.length > 400) line = line.slice(0, 399) + "…";
+      log(line);
     });
   }
+
   next();
 });
 
-/* --------------------- START SERVER --------------------- */
 async function startServer() {
   const server = createServer(app);
 
-  // Verify DB
+  // Security: Verify database connection before starting
   try {
     await db.execute(sql`SELECT 1`);
-    log("Database connection verified");
+    log("Database connection verified nigga!");
   } catch (err) {
-    console.error("Database connection failed:", err);
+    console.error("Database connection failed: check you code man", err);
     process.exit(1);
   }
 
-  // Register custom routes
+  // Register all API routes
   try {
     await registerRoutes(app as any);
-    log("Routes registered successfully");
+    log("Routes registered successfully.But Damn JavaScript is Hard Man!");
   } catch (err) {
     console.error("Failed to register routes:", err);
   }
@@ -196,7 +135,7 @@ async function startServer() {
   // API routes
   app.use("/api/songs", songsRouter);
 
-  // Protected profile route
+  // Security: Protected route 
   app.get("/profile", (req: any, res: any) => {
     if (!req.oidc?.isAuthenticated?.()) {
       return res.status(401).send("Unauthorized");
@@ -204,46 +143,37 @@ async function startServer() {
     res.json(req.oidc.user);
   });
 
-  // Health check
-  app.get("/api/health", (_req: any, res: any) => {
-    res.status(200).json({
-      status: "OK",
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || "development",
-    });
-  });
-
-  // Global error handler
+  // Security: Global error handler
   app.use((err: any, _req: any, res: any, _next: any) => {
     const status = err?.status || err?.statusCode || 500;
-    const message =
-      process.env.NODE_ENV === "production" ? "Internal Server Error" : err?.message || "Internal Server Error";
+    const message = err?.message || "Internal Server Error";
     console.error("Express Error:", { status, message });
+    // Security: Don't expose stack traces in production
     res.status(status).json({ message });
   });
 
-  // Frontend serving
   const port = parseInt(process.env.PORT || "4000", 10);
-  const host = process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";
 
-  if (process.env.NODE_ENV === "development") {
+  // Development vs Production setup
+  if (app.get("env") === "development") {
     await setupVite(app as any, server as any);
   } else {
     serveStatic(app as any);
-    app.get("*", (_req: any, res: any) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(process.cwd(), "client", "dist", "index.html"));
     });
   }
 
-  server.listen(port, host, () => {
-    log(`Server running on http://${host}:${port} in ${process.env.NODE_ENV || "development"} mode`);
-    log(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
-    log(`✅ Login available at: http://${host}:${port}/login`);
-    log(`✅ Logout available at: http://${host}:${port}/api/logout`);
-    log(`✅ Auth0 callback will be automatically handled at: http://${host}:${port}/callback`);
-  });
+  // Security: Prevent double server starts
+  if (!(app as any).__serverStarted) {
+    server.listen(port, "127.0.0.1", () => {
+      log(`Server running on http://127.0.0.1:${port} Cool RIGHT!!`);
+      (app as any).__serverStarted = true;
+    });
+  }
 }
 
+// Start the server with error handling
 startServer().catch((err) => {
   console.error("Failed to start server:", err);
   process.exit(1);
