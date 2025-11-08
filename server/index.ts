@@ -24,7 +24,7 @@ const config = {
   authRequired: false,
   auth0Logout: true,
   secret: process.env.AUTH0_SECRET ?? "change_me",
-  baseURL: process.env.BASE_URL ?? "https://mwanzo-tunes.vercel.app",
+  baseURL: process.env.BASE_URL ?? "https://mwanzo-tunes-server.onrender.com",
   clientID: process.env.CLIENT_ID ?? "",
   issuerBaseURL: process.env.ISSUER_BASE_URL ?? "",
   authorizationParams: {
@@ -37,10 +37,34 @@ const config = {
 app.use(auth(config) as any);
 
 // --------------------
-// Auth Routes
+// Force login route
 // --------------------
+app.get("/login", (req: any, res: Response) => {
+  res.oidc.login({
+    returnTo: "/",
+    authorizationParams: {
+      prompt: "login", // forces login page even if already authenticated
+    },
+  });
+});
 
-// GET /api/auth/user - get current user and sync with DB
+// --------------------
+// Logout route
+// --------------------
+app.get("/logout", (req: any, res: Response) => {
+  try {
+    res.oidc.logout({
+      returnTo: process.env.BASE_URL ?? "https://mwanzo-tunes.vercel.app",
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ message: "Logout failed" });
+  }
+});
+
+// --------------------
+// Authenticated user endpoint
+// --------------------
 app.get("/api/auth/user", async (req: any, res: Response) => {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
@@ -54,13 +78,13 @@ app.get("/api/auth/user", async (req: any, res: Response) => {
     const lastName = user.family_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // Check if user exists in database
+    // Check if user exists in DB
     const existing = await db.execute(
       sql`SELECT * FROM users WHERE auth0_id = ${auth0Id}`
     );
     let dbUser = existing.rows[0];
 
-    // Create new user if not found
+    // Insert user if not found
     if (!dbUser) {
       const role = "user";
       const inserted = await db.execute(sql`
@@ -78,23 +102,6 @@ app.get("/api/auth/user", async (req: any, res: Response) => {
   }
 });
 
-// Logout route
-app.get("/api/logout", (req: any, res: Response) => {
-  try {
-    res.oidc.logout({
-      returnTo: process.env.BASE_URL ?? "https://mwanzo-tunes.vercel.app",
-    });
-  } catch (err) {
-    console.error("Logout error:", err);
-    res.status(500).json({ message: "Logout failed" });
-  }
-});
-
-// Optional: catch /callback and redirect to frontend
-app.get("/callback", (req: Request, res: Response) => {
-  res.redirect(process.env.FRONTEND_URL ?? "https://mwanzo-tunes.vercel.app");
-});
-
 // --------------------
 // Serve uploads
 // --------------------
@@ -108,18 +115,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const url = req.path;
 
   if (url.startsWith("/api")) {
-    let capturedJsonResponse: any;
     const originalJson = res.json.bind(res);
-
-    res.json = (body: any) => {
-      capturedJsonResponse = body;
-      return originalJson(body);
-    };
+    res.json = (body: any) => originalJson(body);
 
     res.on("finish", () => {
       const duration = Date.now() - start;
-      const line = `${req.method} ${url} ${res.statusCode} in ${duration}ms`;
-      log(line);
+      log(`${req.method} ${url} ${res.statusCode} in ${duration}ms`);
     });
   }
 
@@ -130,12 +131,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // API routes
 // --------------------
 app.use("/api/songs", songsRouter);
+
 registerRoutes(app as any)
   .then(() => log("Routes registered successfully"))
   .catch((err) => console.error("Failed to register routes:", err));
 
 // --------------------
-// Protected profile route example
+// Protected profile route
 // --------------------
 app.get("/profile", (req: any, res: Response) => {
   if (!req.oidc?.isAuthenticated?.()) {
