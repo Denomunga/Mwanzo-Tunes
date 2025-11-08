@@ -33,20 +33,26 @@ app.use(
 );
 
 /* --------------------- CORS CONFIG --------------------- */
+/* --------------------- CORS CONFIG --------------------- */
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
   "https://mwanzo-tunes.vercel.app",
+  "https://dev-b7iml26mefi4x8a4.us.auth0.com", // ← ADD AUTH0 DOMAIN HERE
+  "https://mwanzo-tunes-git-main-denomungas-projects.vercel.app", // ← ADD THIS TOO (your new Vercel domain)
 ].filter(Boolean) as string[];
 
 app.use(
   cors({
     origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, server-to-server)
       if (!origin) return callback(null, true);
+      
       const normalizedOrigin = origin.replace(/\/$/, "");
       const isAllowed = allowedOrigins.some((o) => o.replace(/\/$/, "") === normalizedOrigin);
+      
       if (isAllowed) {
         callback(null, true);
       } else {
@@ -61,7 +67,6 @@ app.use(
 );
 
 app.options("*", cors());
-
 
 /* --------------------- BODY PARSERS --------------------- */
 app.use(express.json({ limit: "10mb" }));
