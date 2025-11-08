@@ -33,21 +33,19 @@ app.use(
 );
 
 /* --------------------- CORS CONFIG --------------------- */
-/* --------------------- CORS CONFIG --------------------- */
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.BASE_URL,
   "http://localhost:3000",
   "http://localhost:5173",
   "https://mwanzo-tunes.vercel.app",
-  "https://dev-b7iml26mefi4x8a4.us.auth0.com", // ← ADD AUTH0 DOMAIN HERE
-  "https://mwanzo-tunes-git-main-denomungas-projects.vercel.app", // ← ADD THIS TOO (your new Vercel domain)
+  "https://dev-b7iml26mefi4x8a4.us.auth0.com",
+  "https://mwanzo-tunes-git-main-denomungas-projects.vercel.app",
 ].filter(Boolean) as string[];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, server-to-server)
       if (!origin) return callback(null, true);
       
       const normalizedOrigin = origin.replace(/\/$/, "");
@@ -86,16 +84,29 @@ app.use(
 
 /* --------------------- AUTH0 MIDDLEWARE --------------------- */
 app.use(authMiddleware);
-app.get("/callback", (req, res) => {
-  return res.redirect(process.env.FRONTEND_URL!);
+
+// ✅ FIXED: Remove custom /callback route - let Auth0 middleware handle it automatically
+// The express-openid-connect middleware automatically handles the /callback route
+// DO NOT create a custom /callback route as it interferes with the OAuth flow
+
+/* --------------------- LOGIN ROUTE (REDIRECTS TO AUTH0) --------------------- */
+app.get("/login", (req: any, res: any) => {
+  try {
+    console.log("Redirecting to Auth0 login...");
+    return res.oidc.login({
+      returnTo: process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app",
+    });
+  } catch (err) {
+    console.error("Login redirect error:", err);
+    res.status(500).json({ message: "Login failed" });
+  }
 });
 
-
-/* --------------------- LOGOUT ROUTE (SIMPLE) --------------------- */
+/* --------------------- LOGOUT ROUTE --------------------- */
 app.get("/api/logout", (req: any, res: any) => {
   try {
     res.oidc.logout({
-      returnTo: process.env.BASE_URL || "http://localhost:4000",
+      returnTo: process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app",
     });
   } catch (err) {
     console.error("Logout error:", err);
@@ -103,7 +114,7 @@ app.get("/api/logout", (req: any, res: any) => {
   }
 });
 
-/* --------------------- AUTH USER ENDPOINT (SIMPLE) --------------------- */
+/* --------------------- AUTH USER ENDPOINT --------------------- */
 app.get("/api/auth/user", async (req: any, res: any) => {
   try {
     if (!req.oidc?.isAuthenticated() || !req.oidc.user) {
@@ -185,7 +196,7 @@ async function startServer() {
   // API routes
   app.use("/api/songs", songsRouter);
 
-  // ✅ SIMPLE PROTECTED PROFILE ROUTE (BACK TO ORIGINAL)
+  // Protected profile route
   app.get("/profile", (req: any, res: any) => {
     if (!req.oidc?.isAuthenticated?.()) {
       return res.status(401).send("Unauthorized");
@@ -229,6 +240,7 @@ async function startServer() {
     log(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
     log(`✅ Login available at: http://${host}:${port}/login`);
     log(`✅ Logout available at: http://${host}:${port}/api/logout`);
+    log(`✅ Auth0 callback will be automatically handled at: http://${host}:${port}/callback`);
   });
 }
 
