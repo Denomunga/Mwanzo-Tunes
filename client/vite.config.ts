@@ -2,8 +2,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+// Proper ES modules __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
@@ -15,13 +18,19 @@ export default defineConfig(({ mode }) => ({
     },
   },
 
-  root: __dirname,
+  // Remove the root property - let Vite use the current directory
+  // root: __dirname, // COMMENT THIS OUT OR REMOVE
 
   // Build output
   build: {
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      }
+    }
   },
 
   // Development proxy (only in dev)
@@ -41,12 +50,6 @@ export default defineConfig(({ mode }) => ({
       : undefined,
   },
 
-  // Inject VITE_API_URL at build time
-  define: {
-    "import.meta.env.VITE_API_URL": JSON.stringify(
-      mode === "production"
-        ? process.env.VITE_API_URL // Vercel injects this
-        : "http://127.0.0.1:4000"
-    ),
-  },
+  // Environment variables - use envDir instead
+  envDir: __dirname,
 }));
