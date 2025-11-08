@@ -9,17 +9,17 @@ import { storage } from "./storage.js";
 
 dotenv.config();
 
-// ✅ FIXED AUTH0 CONFIGURATION WITH CLIENT_SECRET
+// ✅ FIXED: Using correct environment variable names from your Render config
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!, // Make sure this is set
-  baseURL: process.env.BASE_URL || "https://mwanzo-tunes-server.onrender.com",
-  clientID: process.env.AUTH0_CLIENT_ID || process.env.CLIENT_ID!,
-  issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL || process.env.ISSUER_BASE_URL!,
+  secret: process.env.AUTH0_SECRET!, // This matches your Render env var
+  baseURL: process.env.BASE_URL!,
+  clientID: process.env.CLIENT_ID!, // This matches your Render env var
+  issuerBaseURL: process.env.ISSUER_BASE_URL!,
   
-  // ✅ CRITICAL: Add the missing clientSecret
-  clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+  // ✅ FIXED: Use CLIENT_SECRET (not AUTH0_CLIENT_SECRET)
+  clientSecret: process.env.CLIENT_SECRET!, // This matches your Render env var
   
   authorizationParams: {
     response_type: "code",
