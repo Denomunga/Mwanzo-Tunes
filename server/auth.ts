@@ -9,33 +9,29 @@ import { storage } from "./storage.js";
 
 dotenv.config();
 
-// === FIXED AUTH0 CONFIGURATION ===
+// ✅ FIXED AUTH0 CONFIGURATION WITH CLIENT_SECRET
 export const authConfig = {
   authRequired: false,
   auth0Logout: true,
-  secret: process.env.AUTH0_SECRET!,
+  secret: process.env.AUTH0_SECRET!, // Make sure this is set
   baseURL: process.env.BASE_URL || "https://mwanzo-tunes-server.onrender.com",
   clientID: process.env.AUTH0_CLIENT_ID || process.env.CLIENT_ID!,
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL || process.env.ISSUER_BASE_URL!,
-  clientSecret: process.env.AUTH0_CLIENT_SECRET,
+  
+  // ✅ CRITICAL: Add the missing clientSecret
+  clientSecret: process.env.AUTH0_CLIENT_SECRET!,
+  
   authorizationParams: {
     response_type: "code",
     scope: "openid profile email"
   },
-  // ✅ Let the library handle routes automatically
   routes: {
-    callback: "/callback", // Explicitly define callback path
-    login: "/login", // Explicitly define login path  
-    logout: "/api/logout" // Explicitly define logout path
+    callback: "/callback",
+    login: "/login", 
+    logout: "/api/logout"
   },
-  // ✅ Session configuration
   session: {
     absoluteDuration: 7 * 24 * 60 * 60, // 7 days
-  },
-  // ✅ After callback handling
-  afterCallback: (req: any, res: any, session: any) => {
-    console.log("Auth0 callback successful for user:", session.user?.email);
-    return session;
   }
 };
 
@@ -61,7 +57,6 @@ export function handleCallback(req: Request, res: Response) {
     
     if (req.oidc?.isAuthenticated()) {
       console.log("User authenticated:", req.oidc.user?.email);
-      // Redirect to frontend after successful authentication
       const frontendUrl = process.env.FRONTEND_URL || "https://mwanzo-tunes.vercel.app";
       return res.redirect(frontendUrl);
     } else {
