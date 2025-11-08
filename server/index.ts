@@ -23,12 +23,23 @@ app.use(cors({
   credentials: true,
 }));
 
-
 // --------------------
 // Middleware
 // --------------------
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+
+// --------------------
+// Health Check Endpoint (CRITICAL FOR RENDER)
+// --------------------
+app.get("/api/health", (_req: Request, res: Response) => {
+  res.status(200).json({ 
+    status: "OK", 
+    message: "Server is healthy",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development"
+  });
+});
 
 // --------------------
 // Auth0 configuration
@@ -74,6 +85,17 @@ app.get("/logout", (req: any, res: Response) => {
     console.error("Logout error:", err);
     res.status(500).json({ message: "Logout failed" });
   }
+});
+
+// --------------------
+// Root endpoint
+// --------------------
+app.get("/", (_req: Request, res: Response) => {
+  res.json({ 
+    message: "Mwanzo-Tunes API Server", 
+    status: "running",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // --------------------
@@ -171,6 +193,13 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // --------------------
+// 404 handler for API routes
+// --------------------
+app.use("/api/*", (_req: Request, res: Response) => {
+  res.status(404).json({ message: "API endpoint not found" });
+});
+
+// --------------------
 // Start server
 // --------------------
 async function startServer() {
@@ -184,15 +213,16 @@ async function startServer() {
     process.exit(1);
   }
 
-  const port = parseInt(process.env.PORT || "4000", 10);
+  const port = parseInt(process.env.PORT || "10000", 10);
 
+  // In production, we don't serve the frontend - it's on Vercel
   if (app.get("env") === "development") {
     await setupVite(app as any, server);
+    log("Development mode: Vite server setup");
   } else {
-    serveStatic(app);
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(process.cwd(), "client", "dist", "index.html"));
-    });
+    log("Production mode: Frontend is deployed on Vercel. Skipping local static hosting.");
+    // In production, only serve API routes
+    // Remove any static file serving for client/dist since frontend is on Vercel
   }
 
   if (!(app as any).__serverStarted) {
